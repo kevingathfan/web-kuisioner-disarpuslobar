@@ -1,69 +1,72 @@
-# Web Perpus Lobar
+# 🏛️ Web Kuisioner & Portal Digital - Disarpus Lombok Barat
 
-Website monitoring dan layanan perpustakaan untuk Dinas Kearsipan dan Perpustakaan Lombok Barat.
+Portal Layanan Digital resmi Dinas Kearsipan dan Perpustakaan Kabupaten Lombok Barat. Aplikasi ini dirancang untuk memfasilitasi pengukuran Indeks Pembangunan Literasi Masyarakat (IPLM), Tingkat Kegemaran Membaca (TKM), serta menyediakan jalur pengaduan aspirasi masyarakat secara terpadu.
 
-**Ringkas Fitur**
-- Portal publik dengan informasi layanan dan akses cepat ke area admin.
-- Dashboard admin untuk statistik, pengelolaan admin, pengaduan, dan data kuesioner.
-- Area pustakawan untuk pengisian kuesioner dan pemilihan perpustakaan.
-- Ekspor data (Excel) menggunakan PhpSpreadsheet.
-- Reset password admin via email (SMTP).
+---
 
-**Struktur Direktori**
-- `admin/` Halaman dan fitur untuk admin.
-- `pustakawan/` Halaman dan fitur untuk pustakawan.
-- `assets/` Aset CSS/JS dan gambar.
-- `config/` Konfigurasi aplikasi.
-- `done_web_perpus_db.sql` Dump database utama.
+## 🚀 Fitur Unggulan
 
-**Persyaratan**
-- PHP 8.x dengan ekstensi `pdo_pgsql` (PDO PostgreSQL).
-- PostgreSQL 13+.
-- Composer.
-- Web server (Apache/Nginx). Direkomendasikan: Laragon (Windows).
+### 🛡️ Keamanan & Akses Kontrol
+- **Role-Based Access Control (RBAC)**: Pembagian akses antara `Super Admin` dan `Admin` biasa.
+- **Primary Admin Protection**: Proteksi tingkat tinggi untuk akun Admin Utama (Owner) yang tidak dapat dihapus melalui sistem web.
+- **CSRF Protection**: Melindungi formulir dari serangan *Cross-Site Request Forgery*.
+- **Rate Limiting**: Keamanan pada sistem login dan reset password untuk mencegah *brute force*.
+- **Secure Configuration**: Proteksi file sensitif menggunakan `.htaccess`.
 
-**Instalasi Lokal (Laragon)**
-1. Pastikan folder proyek berada di `C:\laragon\www\web-perpus-lobar`.
-2. Install dependency:
+### 📧 Sistem Notifikasi & Reset Password
+- **Brevo API Integration**: Pengiriman email reset password yang stabil menggunakan API HTTP (menggantikan SMTP tradisional yang sering terblokir).
+- **Email Logging**: Riwayat pengiriman email yang dapat dipantau langsung dari dashboard admin.
 
-```bash
-composer install
-```
+### 📊 Manajemen Data
+- **Dynamic Survey Engine**: Rendering kuisioner secara dinamis berdasarkan data database.
+- **Data Export**: Ekspor hasil survei ke format Excel (XLS) untuk laporan formal.
+- **System Logs**: Pencatatan riwayat reset password demi akuntabilitas.
 
-3. Buat database PostgreSQL:
-- Nama database default: `monitoring_perpus_db`.
-- Bisa dibuat via pgAdmin atau psql.
+### 🔍 Optimasi Mesin Pencari (SEO)
+- **SEO Meta Tags**: Optimasi deskripsi dan kata kunci untuk Google.
+- **Open Graph Ready**: Tampilan profesional saat link dibagikan ke media sosial (WhatsApp, FB, dll).
+- **Robots.txt**: Mengatur akses robot pencari agar hanya indeks halaman publik.
 
-4. Import dump database:
-- Gunakan file `done_web_perpus_db.sql`.
-- Di pgAdmin: klik kanan database -> Restore -> pilih file.
+---
 
-5. Atur kredensial database di `config/database.php`:
-- `host`, `port`, `dbname`, `username`, `password`.
+## 🛠️ Tech Stack
+- **Backend**: PHP 8.x
+- **Database**: MySQL / MariaDB
+- **UI/UX**: Bootstrap 5 + Vanilla CSS (Glassmorphism Concept)
+- **Library**: Brevo API v3 (Mail Delivery)
+- **Environment**: Laragon (Recommended for local dev)
 
-6. Atur SMTP dan URL aplikasi di `mail.php`:
-- `smtp_host`, `smtp_port`, `smtp_user`, `smtp_pass`, `from_name`, `from_email`, `app_url`.
-- `app_url` harus sesuai dengan URL lokal Anda, contoh: `http://localhost/web-perpus-lobar`.
+---
 
-7. Jalankan web server Laragon dan akses:
-- Publik: `http://localhost/web-perpus-lobar/`
-- Admin: `http://localhost/web-perpus-lobar/admin/login.php`
-- Pustakawan: `http://localhost/web-perpus-lobar/pustakawan/`
+## 📦 Panduan Instalasi Lokal
 
-**Akun Admin**
-- Data admin tersimpan di tabel `users`.
-- Jika menggunakan dump `done_web_perpus_db.sql`, akun admin sudah ada tetapi password terenkripsi.
-- Jika belum bisa login, buat akun baru melalui halaman `admin/users.php` (menu Kelola Admin) setelah login, atau update langsung di database dengan password hash.
-- Fitur Lupa Password membutuhkan SMTP yang sudah benar di `mail.php`.
+1. **Clone Proyek**
+   ```bash
+   git clone https://github.com/kevingathfan/web-kuisioner-disarpuslobar.git
+   ```
 
-**Catatan Database**
-- Konfigurasi koneksi ada di `config/database.php`.
-- Nama database default: `monitoring_perpus_db`.
+2. **Setup Database**
+   - Buat database baru bernama `monitoring_perpus_db`.
+   - Import file `database.sql` ke database tersebut.
 
-**Troubleshooting**
-- Error koneksi database: periksa `config/database.php` dan status PostgreSQL.
-- Halaman kosong/500: cek log web server dan pastikan ekstensi `pdo_pgsql` aktif.
-- Lupa password tidak mengirim email: pastikan SMTP di `mail.php` valid dan `app_url` benar.
+3. **Konfigurasi Database**
+   Sesuaikan kredensial database Anda di file `config/database.php`.
 
-**Lisensi**
-Internal project.
+4. **Konfigurasi Email (Brevo API)**
+   - Duplikat file `config/mail_config.sample.php` menjadi `config/mail_config.php`.
+   - Masukkan **Brevo API Key** Anda pada kolom `brevo_api_key`.
+
+5. **Akses Aplikasi**
+   - **Publik**: `http://localhost/web-perpus-lobar/`
+   - **Admin**: `http://localhost/web-perpus-lobar/admin/login.php`
+
+---
+
+## 🔐 Akun Admin Default
+- Akun admin tersimpan di tabel `users`.
+- Pastikan salah satu akun memiliki nilai `is_primary = 1` di database untuk mendapatkan proteksi penuh sebagai Admin Utama.
+
+---
+
+## 📄 Lisensi
+Internal Project - Dinas Kearsipan dan Perpustakaan Kabupaten Lombok Barat.
