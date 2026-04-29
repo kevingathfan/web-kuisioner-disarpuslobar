@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /config/
+Disallow: /vendor/
+Disallow: /assets/
+
+# Sitemap
+# Sitemap: https://kuisioner-disarpus.page.gd/sitemap.xml

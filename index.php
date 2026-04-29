@@ -14,7 +14,25 @@ $tgl_sekarang = $hari[date('w')] . ', ' . date('d') . ' ' . $bulanIndo[date('m')
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Disarpus Lombok Barat - Portal Layanan Digital</title>
+    
+    <!-- SEO Meta Tags -->
+    <title>Disarpus Lombok Barat - Portal Layanan Digital & Kuisioner</title>
+    <meta name="description" content="Portal Layanan Digital Dinas Kearsipan dan Perpustakaan Kabupaten Lombok Barat. Akses survei IPLM, TKM, dan Layanan Pengaduan masyarakat secara online.">
+    <meta name="keywords" content="disarpus lobar, perpustakaan lombok barat, kuisioner iplm, survei tkm lombok barat, layanan pengaduan disarpus">
+    <meta name="author" content="Disarpus Lombok Barat">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://kuisioner-disarpus.page.gd/">
+    <meta property="og:title" content="Disarpus Lombok Barat - Portal Layanan Digital">
+    <meta property="og:description" content="Akses survei literasi (IPLM & TKM) dan layanan pengaduan masyarakat Kabupaten Lombok Barat dalam satu portal.">
+    <meta property="og:image" content="https://kuisioner-disarpus.page.gd/assets/logo_disarpus.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="Disarpus Lombok Barat - Portal Layanan Digital">
+    <meta property="twitter:description" content="Akses survei literasi (IPLM & TKM) dan layanan pengaduan masyarakat Kabupaten Lombok Barat.">
+    <meta property="twitter:image" content="https://kuisioner-disarpus.page.gd/assets/logo_disarpus.png">
 
     <!-- Google Fonts: Plus Jakarta Sans (Modern, Geometric, Trustworthy) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
