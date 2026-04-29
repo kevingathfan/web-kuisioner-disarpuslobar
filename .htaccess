@@ -1,0 +1,22 @@
+# 1. Matikan Directory Browsing
+Options -Indexes
+
+# 2. Lindungi file sensitif
+<FilesMatch "^\.|\.(sql|log|ini|sh|bak|json|lock|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 3. Lindungi file konfigurasi
+<Files "composer.json">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# 4. Lindungi folder .git
+RewriteEngine On
+RewriteRule ^\.git - [F,L]
+
+# 5. Handle Error (Opsional)
+# ErrorDocument 403 /error/403.php
+# ErrorDocument 404 /error/404.php

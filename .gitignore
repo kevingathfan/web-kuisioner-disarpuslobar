@@ -1,0 +1,13 @@
+# Dependencies
+/vendor/
+
+# Configuration (Optional: ignore local DB if you want)
+# config/database.php
+
+# Logs and temporary files
+*.log
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
