@@ -308,23 +308,42 @@
                         }
                         $finfo = new finfo(FILEINFO_MIME_TYPE);
                         $mime = $finfo->file($file);
-                        $allowed_mime = ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'];
+                        $allowed_mime = ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel', 'application/octet-stream'];
                         if ($mime && !in_array($mime, $allowed_mime, true)) {
                             throw new Exception("Tipe file tidak valid.");
                         }
 
                         $handle = fopen($file, "r");
-                        $header = fgetcsv($handle);
+                        
+                        // Detect delimiter
+                        $firstLine = fgets($handle);
+                        $delimiter = (strpos($firstLine, ';') !== false) ? ';' : ',';
+                        rewind($handle);
+
+                        // Remove BOM if present
+                        $bom = fread($handle, 3);
+                        if ($bom !== "\xEF\xBB\xBF") {
+                            rewind($handle);
+                        }
+
+                        $header = fgetcsv($handle, 1000, $delimiter);
                         if (!$header || count($header) < 3) {
                             fclose($handle);
                             throw new Exception("Format CSV tidak valid. Harus memiliki minimal 3 kolom: Nama, Jenis, Subjenis.");
                         }
                         
                         $sukses = 0; $gagal = 0;
+                        $gagalDetails = [];
                         $stmt = $pdo->prepare("INSERT INTO libraries (nama, kategori, jenis) VALUES (?, ?, ?)");
                         
-                        while (($row = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                            if (count($row) < 3) { $gagal++; continue; }
+                        $rowNumber = 1;
+                        while (($row = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
+                            $rowNumber++;
+                            if (count($row) < 3) { 
+                                $gagal++; 
+                                $gagalDetails[] = "Baris $rowNumber: Kolom tidak lengkap.";
+                                continue; 
+                            }
                             $nama = trim($row[0] ?? '');
                             $rawKat = trim($row[1] ?? 'Umum');
                             $rawSub = trim($row[2] ?? '');
@@ -342,13 +361,30 @@
                                     if ($cek->rowCount() == 0) {
                                         $stmt->execute([strtoupper($nama), $fixedKat, $fixedSub]);
                                         $sukses++;
+                                    } else {
+                                        $gagal++;
+                                        $gagalDetails[] = "Baris $rowNumber: '$nama' (Sudah ada / Duplikat).";
                                     }
-                                } else { $gagal++; }
-                            } else { $gagal++; }
+                                } else { 
+                                    $gagal++; 
+                                    $gagalDetails[] = "Baris $rowNumber: '$nama' (Kategori/Subjenis '$rawKat' - '$rawSub' tidak valid).";
+                                }
+                            } else { 
+                                $gagal++; 
+                                $gagalDetails[] = "Baris $rowNumber: '$nama' (Nama tidak valid, min 3 huruf).";
+                            }
                         }
                         fclose($handle);
-                        $pesan = "Import Selesai. Masuk: $sukses. Gagal: $gagal";
-                        if ($gagal > 0) $tipe_pesan = "warning";
+                        
+                        $pesan = "Import Selesai. Sukses: <b>$sukses</b>, Gagal: <b>$gagal</b>.";
+                        if ($gagal > 0) {
+                            $tipe_pesan = ($sukses > 0) ? "warning" : "danger";
+                            $pesan .= "<div class='mt-2'><small class='fw-bold'>Detail Data Gagal:</small><ul class='mb-0 small ps-3' style='max-height: 150px; overflow-y: auto;'>";
+                            foreach ($gagalDetails as $detail) {
+                                $pesan .= "<li>" . htmlspecialchars($detail) . "</li>";
+                            }
+                            $pesan .= "</ul></div>";
+                        }
                     } else { throw new Exception("Gagal upload CSV."); }
                 }
             }
