@@ -105,6 +105,7 @@ $total_aduan = count($data);
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../assets/govtech.css">
     <link rel="stylesheet" href="../assets/admin-readability.css">
+    <link rel="stylesheet" href="../assets/admin-responsive.css">
     <link rel="stylesheet" href="../assets/loader.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -452,3 +453,4 @@ $total_aduan = count($data);
     <script src="../assets/loader.js"></script>
 </body>
 </html>
+

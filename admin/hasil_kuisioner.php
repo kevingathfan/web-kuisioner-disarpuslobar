@@ -132,6 +132,7 @@ $periode_label = ($start_key === $end_key)
     <!-- GovTech Theme -->
     <link rel="stylesheet" href="../assets/govtech.css">
     <link rel="stylesheet" href="../assets/admin-readability.css">
+    <link rel="stylesheet" href="../assets/admin-responsive.css">
     <link rel="stylesheet" href="../assets/loader.css">
     <style>
         .table thead th { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef; }
@@ -424,3 +425,4 @@ $periode_label = ($start_key === $end_key)
     <script src="../assets/loader.js"></script>
 </body>
 </html>
+

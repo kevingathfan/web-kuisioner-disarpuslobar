@@ -766,6 +766,7 @@ try {
     <!-- GovTech Theme -->
     <link rel="stylesheet" href="../assets/govtech.css">
     <link rel="stylesheet" href="../assets/admin-readability.css">
+    <link rel="stylesheet" href="../assets/admin-responsive.css">
     <link rel="stylesheet" href="../assets/loader.css">
     <style>
         /* Tab navigation styling */
@@ -797,6 +798,103 @@ try {
             border-color: #3d59e0;
         }
 
+        /* === MOBILE RESPONSIVE FIXES === */
+        @media (max-width: 768px) {
+            /* Page header: stack title & buttons vertically */
+            .page-header.my-4 {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+            .page-header.my-4 > .d-flex:first-child {
+                width: 100%;
+            }
+            .page-header.my-4 > .d-flex:last-child {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            .page-header.my-4 > .d-flex:last-child .btn {
+                flex: 1;
+                font-size: 0.78rem !important;
+                padding: 8px 10px !important;
+                white-space: nowrap;
+            }
+
+            /* Settings row (Kontak Validasi + Auto-fill): full width */
+            .row.g-4.mb-5 > .col-md-6 {
+                flex: 0 0 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Settings card inner forms */
+            .card.h-100 .d-flex.align-items-start.gap-3 {
+                flex-direction: column;
+                gap: 8px !important;
+            }
+            .card.h-100 .bg-primary-subtle.rounded-circle,
+            .card.h-100 .bg-info-subtle.rounded-circle {
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            /* Numbering style bar */
+            .col-12 > .d-flex.align-items-center.justify-content-between.p-3 {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+            }
+
+            /* Auto-fill form: stack label columns */
+            .row.g-2 > .col-12 .mb-2 {
+                margin-bottom: 8px !important;
+            }
+
+            /* Table container: force horizontal scroll */
+            .table-responsive.rounded-4 {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            .table-responsive.rounded-4 > table {
+                min-width: 650px;
+            }
+
+            /* Category header rows inside table */
+            .table-light td[colspan="6"] .d-flex {
+                flex-direction: column !important;
+                gap: 8px !important;
+                align-items: flex-start !important;
+            }
+
+            /* Bulk actions bar */
+            .d-flex.justify-content-end > .bg-light.border.rounded-3 {
+                flex-wrap: wrap;
+                justify-content: space-between;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header.my-4 > .d-flex:last-child {
+                flex-direction: column !important;
+            }
+            .page-header.my-4 > .d-flex:last-child .btn {
+                width: 100% !important;
+            }
+
+            /* Card body padding reduction */
+            .card-body.p-4.bg-white {
+                padding: 10px !important;
+            }
+            .px-4.pt-4.pb-0 {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
+            /* Auto-fill selects */
+            .form-select-sm {
+                font-size: 0.78rem !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1395,7 +1493,7 @@ try {
                             <td><span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill"><?= strtoupper($row['tipe_input']) ?></span></td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm rounded-pill" role="group">
-                                    <button class="btn btn-sm btn-white border hover-bg-light" onclick='editData(<?= json_encode($row) ?>)' title="Edit"><i class="bi bi-pencil-square text-warning"></i></button>
+                                    <button type="button" class="btn btn-sm btn-white border hover-bg-light" onclick='editData(<?= json_encode($row) ?>)' title="Edit"><i class="bi bi-pencil-square text-warning"></i></button>
                                     <button type="button" class="btn btn-sm btn-white border hover-bg-light text-danger" 
                                         onclick="hapusSatu(<?= $row['id'] ?>, '<?= $tab ?>')">
                                         <i class="bi bi-trash"></i>

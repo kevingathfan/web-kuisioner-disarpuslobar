@@ -96,7 +96,10 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
             border: 1px solid var(--c-border);
             margin-bottom: 2.5rem;
             overflow: hidden;
+            overflow-x: hidden;
             transition: all 0.3s ease;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         .section-card:hover {
             box-shadow: 0 20px 25px -5px rgba(0,0,0,0.08);
@@ -324,10 +327,83 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
         }
 
         @media (max-width: 768px) {
-            .section-header { padding: 1.25rem 1.5rem; }
-            .q-item { padding: 1.5rem; }
-            .opt-grid { grid-template-columns: 1fr; }
-            .btn-submit-modern { width: 100%; }
+            .form-branding { margin-bottom: 1.5rem; }
+            .brand-logo-small { height: 32px; margin: 0 4px; }
+
+            .section-card {
+                border-radius: 14px;
+                margin-bottom: 1.5rem;
+            }
+            .section-header {
+                padding: 1rem 1rem;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .section-header .bi { font-size: 1.1rem !important; }
+            .section-title {
+                font-size: 0.9rem;
+                word-break: break-word;
+            }
+
+            .q-item {
+                padding: 1.25rem 1rem;
+            }
+            .q-label {
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }
+            .q-num {
+                min-width: 28px;
+                font-size: 0.95rem;
+            }
+            .q-hint {
+                font-size: 0.78rem;
+                padding: 8px 12px;
+                word-break: break-word;
+            }
+
+            /* Inputs inside questions — reduce left indent */
+            .q-item > div[style*=\"padding-left: 34px\"] {
+                padding-left: 0 !important;
+            }
+
+            .form-control, .form-select {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+                border-radius: 10px;
+            }
+
+            .opt-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .btn-opt {
+                min-height: 48px;
+                padding: 10px 14px;
+                font-size: 0.85rem;
+                border-radius: 10px;
+            }
+
+            .submit-container {
+                margin-top: 2rem;
+                padding-bottom: 3rem;
+            }
+            .btn-submit-modern {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 1rem;
+                border-radius: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .section-header { padding: 0.85rem 0.85rem; }
+            .section-title { font-size: 0.82rem; }
+            .q-item { padding: 1rem 0.75rem; }
+            .q-label { font-size: 0.88rem; }
+            .form-control, .form-select { font-size: 0.85rem; padding: 0.65rem 0.85rem; }
+            .btn-opt { font-size: 0.8rem; min-height: 42px; padding: 8px 10px; }
+            .btn-submit-modern { font-size: 0.9rem; padding: 12px 16px; }
         }
     </style>
     ";

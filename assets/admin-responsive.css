@@ -1,4 +1,8 @@
-/* admin-responsive.css */
+/* admin-responsive.css — Comprehensive Mobile Responsiveness for Admin Panel */
+
+/* ===========================
+   SIDEBAR MOBILE OVERLAY
+   =========================== */
 .sidebar-backdrop {
   display: none;
 }
@@ -49,42 +53,336 @@
     overflow: hidden;
   }
 
+  /* ===========================
+     PAGE HEADERS
+     =========================== */
   .page-header {
     flex-direction: column !important;
     align-items: flex-start !important;
-    gap: 10px !important;
+    gap: 12px !important;
   }
 
-  .page-header .btn,
-  .page-header .badge {
-    width: auto;
+  .page-header .d-flex {
+    flex-wrap: wrap;
+    gap: 8px !important;
   }
 
-  .page-header .btn.w-100-on-mobile {
+  /* Header action buttons should wrap on mobile */
+  .page-header > .d-flex:last-child {
     width: 100%;
+  }
+
+  .page-header > .d-flex:last-child .btn {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem !important;
+    padding: 8px 12px !important;
+    white-space: nowrap;
   }
 
   .icon-circle {
     flex: 0 0 auto;
   }
+
+  /* ===========================
+     CARD & TABLE LAYOUTS
+     =========================== */
+  /* Prevent cards from lifting on hover (annoying on mobile) */
+  .card-clean:hover {
+    transform: none !important;
+  }
+
+  /* Force tables to scroll horizontally, not break layout */
+  .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Minimum table width to prevent column squeeze */
+  .table-responsive table {
+    min-width: 600px;
+  }
+
+  /* Filter row stacking */
+  .row.g-3 > [class*="col-md-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  /* ===========================
+     ATUR PERTANYAAN SPECIFIC
+     =========================== */
+  /* Top tab pills - horizontal scroll on mobile instead of wrapping */
+  #myTab {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #myTab::-webkit-scrollbar {
+    display: none;
+  }
+  #myTab .nav-item {
+    flex-shrink: 0;
+  }
+
+  /* Settings cards (Kontak Validasi, Auto-fill) — full width stacking */
+  .row.g-4.mb-5 > .col-md-6 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  /* Numbering style bar — stack vertically */
+  .row.g-4.mb-5 > .col-12 .d-flex.align-items-center.justify-content-between {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  /* Bulk action bar */
+  #bulkActions-iplm .d-flex.justify-content-end,
+  #bulkActions-tkm .d-flex.justify-content-end {
+    justify-content: stretch !important;
+  }
+  #bulkActions-iplm .bg-light,
+  #bulkActions-tkm .bg-light {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between !important;
+  }
+
+  /* Question table — ensure min-width for scrolling */
+  .table[style*="table-layout: fixed"] {
+    min-width: 700px !important;
+  }
+
+  /* Table header checkboxes */
+  .table th:first-child,
+  .table td:first-child {
+    width: 40px !important;
+    min-width: 40px !important;
+  }
+
+  /* ===========================
+     DASHBOARD SPECIFIC
+     =========================== */
+  /* Status control cards — stack content */
+  .card-clean.p-3.px-4 {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .card-clean.p-3.px-4 .d-flex.align-items-center.gap-2:last-child {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Chart container */
+  .card-clean .d-flex.justify-content-between.align-items-center.mb-4 {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+
+  /* Range filter — stack vertically */
+  .bg-light.rounded-4.p-4.border .d-flex.justify-content-between.align-items-center.flex-wrap {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+
+  .bg-light.rounded-4.p-4.border .d-flex.align-items-center.gap-3 {
+    flex-wrap: wrap;
+  }
+
+  /* Arrow icon between date selects — hide on mobile */
+  .col-md-1.text-center.py-2 {
+    display: none !important;
+  }
+
+  /* Date & Calendar badge pill */
+  .bg-white.px-3.py-2.rounded-pill.shadow-sm.border {
+    display: none !important;
+  }
+
+  /* ===========================
+     PERPUSTAKAAN SPECIFIC
+     =========================== */
+  /* Inline filter bar — stack */
+  .d-flex.flex-wrap.gap-2.mb-4.bg-light {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* Action buttons bar */
+  .d-flex.justify-content-between.align-items-center.mb-3 {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px;
+  }
+  .d-flex.justify-content-between.align-items-center.mb-3 .d-flex.gap-2 {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .d-flex.justify-content-between.align-items-center.mb-3 .d-flex.gap-2 .btn {
+    flex: 1;
+  }
+
+  /* Stats overview cards */
+  .card-clean.p-4.bg-primary-subtle .row.g-3 > [class*="col-md-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  /* ===========================
+     MODALS — MOBILE FRIENDLY
+     =========================== */
+  .modal-dialog {
+    margin: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  .modal-dialog-centered {
+    min-height: calc(100% - 16px) !important;
+  }
+
+  .modal-content {
+    border-radius: 16px !important;
+  }
+
+  .modal-body {
+    padding: 16px !important;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* Modal tab pills - stack if needed */
+  #modalTab {
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+  #modalTab .nav-item {
+    width: 100%;
+  }
+  #modalTab .nav-link {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Modal form rows */
+  .modal-body .row > [class*="col-md-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  /* Kelola Bagian modal tabs */
+  #manageBagianTab {
+    flex-direction: column !important;
+  }
+  #manageBagianTab .nav-item {
+    width: 100%;
+  }
+
+  /* Bagian list items — stack on mobile */
+  .list-group-item.d-flex.justify-content-between {
+    flex-direction: column !important;
+    gap: 8px;
+    align-items: flex-start !important;
+  }
+  .list-group-item .d-flex.gap-1 {
+    align-self: flex-end;
+  }
 }
 
+/* ===========================
+   EXTRA SMALL SCREENS (< 576px)
+   =========================== */
 @media (max-width: 576px) {
   .main-content {
-    padding: 16px 12px !important;
+    padding: 14px 10px !important;
   }
 
   .card-clean,
   .card-custom,
   .card-msg {
-    padding: 16px !important;
+    padding: 14px !important;
+    border-radius: 12px !important;
   }
 
-  .page-title {
-    font-size: 1.2rem !important;
+  .page-title,
+  .main-content h2 {
+    font-size: 1.15rem !important;
   }
 
   .page-subtitle {
+    font-size: 0.8rem !important;
+  }
+
+  /* Smaller buttons */
+  .btn {
+    font-size: 0.8rem !important;
+    padding: 8px 14px !important;
+  }
+  .btn-sm {
+    font-size: 0.75rem !important;
+    padding: 5px 10px !important;
+  }
+
+  /* Tab pills — smaller text */
+  .nav-pills .nav-link {
+    font-size: 0.8rem !important;
+    padding: 8px 14px !important;
+  }
+
+  /* Card body padding */
+  .card-body.p-4 {
+    padding: 14px !important;
+  }
+
+  .p-4 {
+    padding: 14px !important;
+  }
+
+  /* Compact form labels */
+  .form-label {
+    font-size: 0.75rem !important;
+  }
+
+  /* Stats inside cards */
+  .h2.fw-bold,
+  .h3.fw-bold {
+    font-size: 1.5rem !important;
+  }
+
+  /* Alert messages */
+  .alert {
+    font-size: 0.8rem !important;
+    padding: 10px 14px !important;
+  }
+
+  /* Pagination */
+  .pagination {
+    flex-wrap: wrap;
+    gap: 2px !important;
+  }
+  .page-link {
+    padding: 4px 8px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* Filter selects inline */
+  .form-select,
+  .form-control {
     font-size: 0.85rem !important;
+    padding: 8px 10px !important;
+  }
+
+  /* Top header buttons — full width stack */
+  .page-header > .d-flex:last-child {
+    flex-direction: column !important;
+  }
+  .page-header > .d-flex:last-child .btn {
+    width: 100% !important;
   }
 }
