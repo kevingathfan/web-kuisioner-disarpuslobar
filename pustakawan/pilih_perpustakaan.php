@@ -42,14 +42,14 @@ foreach ($rawKategori as $row) {
   <link rel="stylesheet" href="../assets/public-responsive.css">
   <style>
     :root {
-        --primary: #0F52BA;
-        --primary-dark: #0a3d8f;
+        --primary: #2563EB;
+        --primary-dark: #1E40AF;
         --border: #e2e8f0;
         --text-main: #0f172a;
         --text-muted: #64748b;
     }
     body { 
-        background-color: #f8fafc; 
+        background-color: #F8FAFC; 
         font-family: 'Plus Jakarta Sans', sans-serif; 
         display: flex; 
         align-items: center; 
@@ -57,29 +57,14 @@ foreach ($rawKategori as $row) {
         position: relative; 
         overflow-x: hidden; 
         margin: 0;
-    }
-    
-    .bg-pattern {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: -1;
-        background-image: 
-            radial-gradient(circle at 10% 20%, rgba(15, 82, 186, 0.04) 0%, transparent 40%),
-            radial-gradient(circle at 90% 80%, rgba(244, 196, 48, 0.04) 0%, transparent 40%),
-            linear-gradient(#e2e8f0 1px, transparent 1px),
-            linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
-        background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-        background-position: 0 0, 0 0, 0 0, 0 0;
-        mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        color: var(--text-main);
     }
 
     .main-card {
-        border-radius: 24px;
+        border-radius: 20px;
         border: 1px solid var(--border);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+        background: #fff;
         transition: transform 0.3s ease;
     }
 
@@ -89,20 +74,22 @@ foreach ($rawKategori as $row) {
     .form-label { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
     
     .btn-primary-gov {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        background: var(--primary);
         border: none;
         padding: 14px;
         border-radius: 50px;
         font-weight: 700;
         color: white;
-        box-shadow: 0 4px 12px rgba(15, 82, 186, 0.25);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
         transition: all 0.3s ease;
     }
     .btn-primary-gov:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(15, 82, 186, 0.35);
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        background: var(--primary-dark);
+        color: white;
     }
-    .btn-primary-gov:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-primary-gov:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
 
     .select2-container--bootstrap-5 .select2-selection {
         border-radius: 12px;
@@ -113,7 +100,6 @@ foreach ($rawKategori as $row) {
 </head>
 <body>
   <?php include __DIR__ . '/../config/loader.php'; ?>
-  <div class="bg-pattern"></div>
 
 <div class="container py-5">
   <div class="row justify-content-center">
@@ -134,7 +120,7 @@ foreach ($rawKategori as $row) {
 
             <div class="mb-4">
               <label class="form-label mb-2">1. Jenis Perpustakaan</label>
-              <select id="select_jenis" name="kategori_utama" class="form-select shadow-sm" style="border-radius:12px; height: 50px;" required>
+              <select id="select_jenis" name="kategori_utama" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" required>
                 <option value="">-- Pilih Jenis --</option>
                 <?php foreach(array_keys($strukturJenis) as $jenis): ?>
                     <option value="<?= $jenis ?>"><?= $jenis ?></option>
@@ -144,7 +130,7 @@ foreach ($rawKategori as $row) {
 
             <div class="mb-4">
               <label class="form-label mb-2">2. Sub Jenis Perpustakaan</label>
-              <select id="select_subjenis" name="kategori_sub" class="form-select shadow-sm" style="border-radius:12px; height: 50px;" disabled required>
+              <select id="select_subjenis" name="kategori_sub" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" disabled required>
                 <option value="">-- Pilih Jenis Dahulu --</option>
               </select>
             </div>

@@ -15,14 +15,14 @@ require_once __DIR__ . '/../config/public_security.php';
     <link rel="stylesheet" href="../assets/loader.css">
     <style>
         :root {
-            --primary: #0F52BA;
-            --primary-dark: #0a3d8f;
+            --primary: #2563EB;
+            --primary-dark: #1E40AF;
             --border: #e2e8f0;
             --text-main: #0f172a;
             --text-muted: #64748b;
         }
         body {
-            background-color: #f8fafc;
+            background-color: #F8FAFC;
             font-family: 'Plus Jakarta Sans', sans-serif;
             min-height: 100vh;
             display: flex;
@@ -32,20 +32,7 @@ require_once __DIR__ . '/../config/public_security.php';
             position: relative;
             overflow-x: hidden;
             margin: 0;
-        }
-        
-        .bg-pattern {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: -1;
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(15, 82, 186, 0.04) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(244, 196, 48, 0.04) 0%, transparent 40%),
-                linear-gradient(#e2e8f0 1px, transparent 1px),
-                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-            background-position: 0 0, 0 0, 0 0, 0 0;
-            mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+            color: var(--text-main);
         }
 
         .form-container {
@@ -57,7 +44,7 @@ require_once __DIR__ . '/../config/public_security.php';
         .hero-icon {
             width: 70px;
             height: 70px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            background: var(--primary);
             border-radius: 20px;
             display: flex;
             align-items: center;
@@ -65,17 +52,15 @@ require_once __DIR__ . '/../config/public_security.php';
             color: white;
             font-size: 2rem;
             margin: 0 auto 20px;
-            box-shadow: 0 10px 20px rgba(15, 82, 186, 0.2);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
             transform: rotate(-5deg);
         }
 
         .main-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: #fff;
             border: 1px solid var(--border);
-            border-radius: 24px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+            border-radius: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
             padding: 40px;
         }
 
@@ -91,20 +76,22 @@ require_once __DIR__ . '/../config/public_security.php';
         }
 
         .btn-primary-gov {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            background: var(--primary);
             border: none;
             padding: 16px;
             border-radius: 50px;
             font-weight: 800;
             color: white;
-            box-shadow: 0 4px 12px rgba(15, 82, 186, 0.25);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .btn-primary-gov:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(15, 82, 186, 0.35);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+            background: var(--primary-dark);
+            color: white;
         }
 
         .back-btn {
@@ -118,16 +105,18 @@ require_once __DIR__ . '/../config/public_security.php';
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255,255,255,0.8);
+            background: #fff;
             padding: 10px 20px;
             border-radius: 50px;
             border: 1px solid var(--border);
             transition: 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .back-btn:hover {
             color: var(--primary);
-            background: #fff;
-            transform: translateX(-5px);
+            background: #EFF6FF;
+            border-color: #BFDBFE;
+            transform: translateX(-2px);
         }
 
         @media (max-width: 768px) {
@@ -150,7 +139,6 @@ require_once __DIR__ . '/../config/public_security.php';
 </head>
 <body>
     <?php include __DIR__ . '/../config/loader.php'; ?>
-    <div class="bg-pattern"></div>
 
     <a href="../index.php" class="back-btn">
         <i class="bi bi-arrow-left"></i> Kembali ke Beranda

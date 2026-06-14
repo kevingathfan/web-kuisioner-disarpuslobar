@@ -13,10 +13,10 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
     $raw_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (!$raw_data) {
-        echo '<div class="alert alert-light border text-center py-5 shadow-sm" style="border-radius: 12px;">
-                <div class="mb-3"><i class="bi bi-clipboard-x text-muted" style="font-size: 3rem;"></i></div>
-                <h5 class="fw-bold text-dark">Data Kuesioner Belum Tersedia</h5>
-                <p class="text-muted mb-0">Silakan hubungi administrator.</p>
+        echo '<div class="empty-state">
+                <div class="empty-state-icon"><i class="bi bi-clipboard-x"></i></div>
+                <h3>Data Kuesioner Belum Tersedia</h3>
+                <p>Silakan hubungi administrator.</p>
               </div>';
         return;
     }
@@ -36,388 +36,578 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
 
     // 2. GROUPING
     $pertanyaan = [];
-    $kategori_order = []; // Track kategori untuk maintain order
+    $kategori_order = [];
     foreach ($raw_data as $row) {
         $bagian = $row['kategori_bagian'];
         if (!isset($pertanyaan[$bagian])) {
             $pertanyaan[$bagian] = [];
-            $kategori_order[] = $bagian; // Track order
+            $kategori_order[] = $bagian;
         }
         $pertanyaan[$bagian][] = $row;
     }
     
-    // Reorder pertanyaan berdasarkan kategori_order
     $pertanyaan_ordered = [];
     foreach ($kategori_order as $bagian) {
         $pertanyaan_ordered[$bagian] = $pertanyaan[$bagian];
+    }
+
+    $total_questions = count($raw_data);
+    $total_sections = count($kategori_order);
+
+    // --- Section icon mapping ---
+    $section_icons = [
+        'data demografi' => 'bi-person-badge',
+        'demografi' => 'bi-person-badge',
+        'kebiasaan membaca' => 'bi-book',
+        'pra membaca' => 'bi-search',
+        'saat membaca' => 'bi-journal-text',
+        'pasca membaca' => 'bi-check2-square',
+        'interaksi perpustakaan' => 'bi-building',
+        'data perpustakaan' => 'bi-building',
+        'koleksi' => 'bi-collection',
+        'layanan' => 'bi-hand-thumbs-up',
+        'sdm' => 'bi-people',
+        'sarana prasarana' => 'bi-tools',
+        'anggaran' => 'bi-cash-stack',
+        'teknologi' => 'bi-cpu',
+    ];
+
+    function get_section_icon($name, $icons) {
+        $lower = strtolower(trim($name));
+        foreach ($icons as $key => $icon) {
+            if (strpos($lower, $key) !== false) return $icon;
+        }
+        return 'bi-bookmark-check-fill';
     }
 
     // --- ASSETS ---
     echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
     echo '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">';
 
-    // --- CSS MODERN PROFESSIONAL (Royal GovTech) ---
-    echo "
+    // --- CSS MODERN GOVTECH DASHBOARD ---
+    echo '
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
 
         :root {
-            --c-primary: #0F52BA;    /* Royal Blue */
-            --c-primary-dark: #0a3d8f;
-            --c-accent: #334155;     /* Slate 700 */
-            --c-bg: #f8fafc;         /* Slate 50 */
-            --c-card: #ffffff;
-            --c-border: #e2e8f0;
-            --c-focus: rgba(15, 82, 186, 0.15);
+            --sv-primary: #2563EB;
+            --sv-primary-dark: #1E40AF;
+            --sv-primary-light: #EFF6FF;
+            --sv-primary-50: #DBEAFE;
+            --sv-bg: #F8FAFC;
+            --sv-card: #FFFFFF;
+            --sv-border: #E2E8F0;
+            --sv-border-light: #F1F5F9;
+            --sv-text: #0F172A;
+            --sv-text-secondary: #64748B;
+            --sv-text-muted: #94A3B8;
+            --sv-success: #10B981;
+            --sv-success-light: #ECFDF5;
+            --sv-danger: #EF4444;
+            --sv-shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --sv-shadow-md: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04);
+            --sv-shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -2px rgba(0,0,0,0.03);
+            --sv-radius: 16px;
+            --sv-radius-sm: 10px;
         }
 
-        body { 
-            background: transparent;
-            color: var(--c-accent); 
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 16px;
+        /* ===== Form Container ===== */
+        .survey-form-wrapper {
+            font-family: "Plus Jakarta Sans", sans-serif;
+            color: var(--sv-text);
+            font-size: 15px;
             line-height: 1.6;
-            margin: 0;
-            padding: 0;
         }
 
-        /* Branding Header */
-        .form-branding {
+        /* ===== Empty State ===== */
+        .empty-state {
             text-align: center;
-            margin-bottom: 3rem;
+            padding: 4rem 2rem;
+            background: var(--sv-card);
+            border: 1px solid var(--sv-border);
+            border-radius: var(--sv-radius);
         }
-        .brand-logo-small { height: 40px; margin: 0 8px; }
-
-        /* Container Section */
-        .section-card {
-            background: var(--c-card);
-            border-radius: 20px;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02);
-            border: 1px solid var(--c-border);
-            margin-bottom: 2.5rem;
-            overflow: hidden;
-            overflow-x: hidden;
-            transition: all 0.3s ease;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
+        .empty-state-icon {
+            font-size: 3rem;
+            color: var(--sv-text-muted);
+            margin-bottom: 1rem;
         }
-        .section-card:hover {
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.08);
+        .empty-state h3 {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+            color: var(--sv-text-secondary);
         }
 
-        /* Header yang Elegan */
-        .section-header {
-            background: #fff;
-            padding: 1.5rem 2.5rem;
-            border-bottom: 1px solid var(--c-border);
-            display: flex; align-items: center; gap: 16px;
-            background: linear-gradient(to right, #ffffff, #f8fafc);
+        /* ===== Clear Form Button ===== */
+        .form-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1.25rem;
         }
-        .section-title {
-            font-size: 1.1rem; font-weight: 800; 
-            letter-spacing: -0.5px; margin: 0;
-            color: #0f172a;
-            text-transform: uppercase;
-        }
-
-        /* Item Pertanyaan */
-        .q-item {
-            padding: 2.5rem;
-            border-bottom: 1px solid var(--c-border);
-            transition: background-color 0.2s ease;
-        }
-        .q-item:last-child { border-bottom: none; }
-        .q-item:hover { background-color: #fcfdfe; }
-
-        /* Label Soal */
-        .q-label {
-            font-size: 1.15rem; font-weight: 700; color: #0f172a;
-            margin-bottom: 1rem; display: block;
-            line-height: 1.6;
-            letter-spacing: -0.3px;
-        }
-        .q-num {
-            display: inline-block; min-width: 35px; 
-            color: var(--c-primary); font-weight: 800;
-        }
-        .req-star { color: #dc2626; font-size: 0.8rem; vertical-align: top; margin-left: 2px; }
-
-        /* Keterangan */
-        .q-hint {
-            font-size: 0.85rem; color: #475569;
-            background: #f1f5f9; padding: 12px 18px;
-            border-radius: 10px; margin-bottom: 1.5rem;
-            display: inline-flex; align-items: center;
-            border: 1px solid #e2e8f0;
-            font-weight: 500;
-        }
-
-        /* Input Styles */
-        .form-control, .form-select {
-            padding: 1rem 1.25rem;
-            border-radius: 12px;
-            border: 1px solid #cbd5e1;
-            font-size: 1rem;
-            transition: all 0.2s ease-in-out;
-            color: #1e293b;
-            background-color: #ffffff;
-            font-weight: 500;
-        }
-        .form-control:focus, .form-select:focus, .form-check-input:focus, .btn:focus {
-            border-color: #cbd5e1 !important;
-            box-shadow: none !important;
-            outline: none !important;
-        }
-        .form-control[readonly] {
-            background-color: #f1f5f9;
-            color: #64748b;
-            cursor: not-allowed;
-            border-color: #e2e8f0;
-        }
-
-        /* Custom Radio / Likert Cards */
-        .opt-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-        }
-        
-        .btn-opt {
-            display: flex; align-items: center; justify-content: center;
-            width: 100%; height: 100%; min-height: 60px;
-            padding: 12px 20px;
-            background: #fff;
-            border: 2px solid #e2e8f0;
-            border-radius: 14px;
-            color: #475569;
-            font-weight: 700; font-size: 0.95rem;
-            cursor: pointer; text-align: center;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .btn-opt:hover {
-            border-color: #cbd5e1;
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-
-        .btn-check:checked + .btn-opt {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            color: var(--c-primary);
-            border-color: var(--c-primary);
-            box-shadow: 0 4px 6px -1px rgba(15, 82, 186, 0.1);
-            transform: translateY(-2px);
-        }
-
-        /* Tombol Submit Floating */
-        .submit-container {
-            margin-top: 4rem; padding-bottom: 5rem;
-            text-align: center;
-        }
-        .btn-submit-modern {
-            background: linear-gradient(135deg, var(--c-primary) 0%, var(--c-primary-dark) 100%);
-            color: #fff;
-            padding: 18px 60px; border-radius: 50px;
-            font-weight: 800; letter-spacing: 0.5px;
-            border: none; font-size: 1.1rem;
-            box-shadow: 0 10px 20px rgba(15, 82, 186, 0.3);
-            transition: all 0.3s ease;
+        .btn-clear-form {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 1px solid var(--sv-border);
+            background: var(--sv-card);
+            color: var(--sv-text-secondary);
+            font-size: 0.82rem;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
         }
-        .btn-submit-modern:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 30px rgba(15, 82, 186, 0.4);
+        .btn-clear-form:hover {
+            border-color: var(--sv-danger);
+            color: var(--sv-danger);
+            background: #FEF2F2;
         }
 
-        /* Question Navigator (Minimap) */
-        .q-navigator {
-            position: fixed;
-            top: 20px;
-            right: 15px;
-            width: 240px; /* Dipersempit agar tidak menutupi kuesioner */
-            background: white;
-            border-radius: 12px;
-            border: 1px solid var(--c-border);
-            padding: 0;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            max-height: calc(100vh - 40px);
+        /* ===== Section Card ===== */
+        .section-card {
+            background: var(--sv-card);
+            border-radius: var(--sv-radius);
+            box-shadow: var(--sv-shadow-sm);
+            border: 1px solid var(--sv-border);
+            margin-bottom: 1.5rem;
             overflow: hidden;
+            display: none; /* Hidden by default, JS shows active */
         }
-        .nav-header {
-            font-size: 0.6rem;
-            font-weight: 800;
-            color: #94a3b8;
-            text-transform: uppercase;
-            padding: 10px 15px;
+        .section-card.active {
+            display: block;
+        }
+
+        /* Section Header */
+        .section-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--sv-border);
             display: flex;
-            justify-content: space-between;
-            background: #fff;
-            border-bottom: 1px solid #f8fafc;
+            align-items: center;
+            gap: 14px;
         }
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 4px;
-            overflow-y: scroll; 
-            overflow-x: hidden;
-            padding: 10px 10px 15px 15px;
-            height: 250px; /* Menampilkan sekitar 10 baris dengan ukuran dot baru */
-        }
-        /* Scrollbar Styling yang lebih interaktif */
-        .nav-grid::-webkit-scrollbar {
-            width: 4px;
-        }
-        .nav-grid::-webkit-scrollbar-track {
-            background: #f8fafc;
-        }
-        .nav-grid::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        .nav-grid::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        .nav-dot {
-            width: 18px; /* Dot lebih kecil agar hemat ruang */
-            height: 18px;
-            border-radius: 4px;
-            background: #f1f5f9;
-            border: 1px solid var(--c-border);
+        .section-header-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--sv-radius-sm);
+            background: var(--sv-primary-light);
+            color: var(--sv-primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.55rem;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+        .section-header-text h2 {
+            font-size: 1.05rem;
             font-weight: 700;
-            color: #64748b;
+            margin: 0;
+            color: var(--sv-text);
+            letter-spacing: -0.3px;
+        }
+        .section-header-text p {
+            font-size: 0.82rem;
+            color: var(--sv-text-secondary);
+            margin: 2px 0 0;
+        }
+
+        /* ===== Question Item ===== */
+        .q-item {
+            padding: 1.75rem 2rem;
+            border-bottom: 1px solid var(--sv-border-light);
+            transition: background-color 0.15s ease;
+        }
+        .q-item:last-child {
+            border-bottom: none;
+        }
+        .q-item:hover {
+            background-color: #FAFBFD;
+        }
+
+        /* Question Label */
+        .q-label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--sv-text);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            line-height: 1.55;
+        }
+        .q-num {
+            color: var(--sv-primary);
+            font-weight: 700;
+            font-size: 0.92rem;
+            flex-shrink: 0;
+            min-width: 28px;
+        }
+        .req-star {
+            color: var(--sv-danger);
+            font-size: 0.7rem;
+            vertical-align: top;
+            margin-left: 2px;
+        }
+
+        /* Hint */
+        .q-hint {
+            font-size: 0.8rem;
+            color: var(--sv-text-secondary);
+            background: var(--sv-border-light);
+            padding: 8px 14px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid var(--sv-border);
+            font-weight: 500;
+            margin-left: 36px;
+        }
+
+        /* ===== Input Styles ===== */
+        .input-wrapper {
+            margin-left: 36px;
+        }
+
+        .input-group-modern {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-group-modern .input-icon {
+            position: absolute;
+            left: 14px;
+            color: var(--sv-text-muted);
+            font-size: 1rem;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .input-group-modern input,
+        .input-group-modern select,
+        .input-group-modern textarea {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.75rem;
+            border-radius: var(--sv-radius-sm);
+            border: 1px solid var(--sv-border);
+            font-size: 0.92rem;
+            color: var(--sv-text);
+            background: var(--sv-card);
+            font-weight: 500;
+            font-family: inherit;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .input-group-modern select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\' fill=\'%2364748b\'%3E%3Cpath d=\'M4.646 5.646a.5.5 0 0 1 .708 0L8 8.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z\'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 16px;
+            padding-right: 2.5rem;
+            cursor: pointer;
+        }
+        .input-group-modern textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .input-group-modern input:focus,
+        .input-group-modern select:focus,
+        .input-group-modern textarea:focus {
+            outline: none;
+            border-color: var(--sv-primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .input-group-modern input[readonly] {
+            background-color: var(--sv-border-light);
+            color: var(--sv-text-secondary);
+            cursor: not-allowed;
+            border-color: var(--sv-border);
+        }
+        .input-group-modern input::placeholder,
+        .input-group-modern textarea::placeholder {
+            color: var(--sv-text-muted);
+            font-weight: 400;
+        }
+
+        /* ===== Segmented Radio (Ya/Tidak style) ===== */
+        .segmented-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .segmented-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: var(--sv-card);
+            border: 1.5px solid var(--sv-border);
+            border-radius: var(--sv-radius-sm);
+            color: var(--sv-text-secondary);
+            font-weight: 600;
+            font-size: 0.88rem;
             cursor: pointer;
             transition: all 0.2s ease;
-            text-decoration: none;
+            min-width: 120px;
+            text-align: center;
+            user-select: none;
         }
-        .nav-dot:hover {
-            border-color: var(--c-primary);
-            color: var(--c-primary);
-            transform: scale(1.1);
+        .segmented-btn:hover {
+            border-color: #CBD5E1;
+            background: var(--sv-border-light);
+            color: var(--sv-text);
         }
-        .nav-dot.filled {
-            background: #dcfce7;
-            border-color: #22c55e;
-            color: #15803d;
+        .btn-check:checked + .segmented-btn {
+            background: var(--sv-primary-light);
+            border-color: var(--sv-primary);
+            color: var(--sv-primary);
         }
-        .nav-dot.active {
-            box-shadow: 0 0 0 3px rgba(15, 82, 186, 0.2);
-            background: var(--c-primary);
-            color: white;
-            border-color: var(--c-primary);
-        }
-        .nav-header {
-            font-size: 0.65rem;
-            font-weight: 800;
-            color: #94a3b8;
-            text-transform: uppercase;
-            margin-bottom: 8px;
+
+        /* ===== Likert Scale — Compact Horizontal ===== */
+        .likert-scale {
             display: flex;
+            align-items: stretch;
+            border: 1.5px solid var(--sv-border);
+            border-radius: var(--sv-radius-sm);
+            overflow: hidden;
+            max-width: 480px;
+        }
+        .likert-option {
+            flex: 1;
+            text-align: center;
+            cursor: pointer;
+            padding: 12px 8px;
+            border-right: 1px solid var(--sv-border);
+            transition: all 0.2s ease;
+            user-select: none;
+            min-width: 0;
+        }
+        .likert-option:last-child {
+            border-right: none;
+        }
+        .likert-option:hover {
+            background: var(--sv-border-light);
+        }
+        .likert-option .likert-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--sv-text-secondary);
+            display: block;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+        .likert-option .likert-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--sv-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: block;
+            line-height: 1.2;
+        }
+        .btn-check:checked + .likert-option {
+            background: var(--sv-primary);
+            color: #fff;
+        }
+        .btn-check:checked + .likert-option .likert-value {
+            color: #fff;
+        }
+        .btn-check:checked + .likert-option .likert-label {
+            color: rgba(255,255,255,0.85);
+        }
+
+        /* ===== Pagination Controls ===== */
+        .pagination-controls {
+            display: flex;
+            align-items: center;
             justify-content: space-between;
+            padding: 1.25rem 2rem;
+            background: var(--sv-card);
+            border-radius: var(--sv-radius);
+            border: 1px solid var(--sv-border);
+            margin-top: 1.5rem;
+            box-shadow: var(--sv-shadow-sm);
+        }
+        .btn-page {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-family: inherit;
+        }
+        .btn-page-prev {
+            background: var(--sv-card);
+            border: 1.5px solid var(--sv-border);
+            color: var(--sv-text-secondary);
+        }
+        .btn-page-prev:hover:not(:disabled) {
+            border-color: var(--sv-primary);
+            color: var(--sv-primary);
+            background: var(--sv-primary-light);
+        }
+        .btn-page-next {
+            background: var(--sv-primary);
+            color: #fff;
+        }
+        .btn-page-next:hover:not(:disabled) {
+            background: var(--sv-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+        .btn-page:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        .page-indicator {
+            font-size: 0.85rem;
+            color: var(--sv-text-secondary);
+            font-weight: 500;
         }
 
-        @media (max-width: 1300px) {
-            .q-navigator { display: none; } /* Hide on smaller screens to avoid overlap */
+        /* ===== Submit Button ===== */
+        .submit-container {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+        .btn-submit-modern {
+            background: var(--sv-primary);
+            color: #fff;
+            padding: 14px 48px;
+            border-radius: 50px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            border: none;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-submit-modern:hover {
+            background: var(--sv-primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
         }
 
+        /* ===== Privacy Footer ===== */
+        .privacy-bar {
+            text-align: center;
+            padding: 1.25rem 1rem;
+            color: var(--sv-text-muted);
+            font-size: 0.82rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* ===== Mobile Responsive ===== */
         @media (max-width: 768px) {
-            .form-branding { margin-bottom: 1.5rem; }
-            .brand-logo-small { height: 32px; margin: 0 4px; }
-
-            .section-card {
-                border-radius: 14px;
-                margin-bottom: 1.5rem;
-            }
             .section-header {
-                padding: 1rem 1rem;
+                padding: 1.25rem 1.25rem;
                 gap: 10px;
-                flex-wrap: wrap;
             }
-            .section-header .bi { font-size: 1.1rem !important; }
-            .section-title {
-                font-size: 0.9rem;
-                word-break: break-word;
+            .section-header-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
             }
-
+            .section-header-text h2 {
+                font-size: 0.95rem;
+            }
             .q-item {
-                padding: 1.25rem 1rem;
+                padding: 1.25rem 1.25rem;
             }
             .q-label {
-                font-size: 0.95rem;
-                line-height: 1.5;
-            }
-            .q-num {
-                min-width: 28px;
-                font-size: 0.95rem;
+                font-size: 0.9rem;
             }
             .q-hint {
-                font-size: 0.78rem;
-                padding: 8px 12px;
-                word-break: break-word;
+                margin-left: 0;
+                font-size: 0.75rem;
             }
-
-            /* Inputs inside questions — reduce left indent */
-            .q-item > div[style*=\"padding-left: 34px\"] {
-                padding-left: 0 !important;
+            .input-wrapper {
+                margin-left: 0;
             }
-
-            .form-control, .form-select {
-                padding: 0.75rem 1rem;
-                font-size: 0.9rem;
-                border-radius: 10px;
+            .segmented-group {
+                gap: 8px;
             }
-
-            .opt-grid {
-                grid-template-columns: 1fr;
+            .segmented-btn {
+                padding: 8px 16px;
+                font-size: 0.82rem;
+                min-width: 100px;
+            }
+            .likert-scale {
+                max-width: 100%;
+            }
+            .likert-option {
+                padding: 10px 4px;
+            }
+            .likert-option .likert-value {
+                font-size: 0.95rem;
+            }
+            .likert-option .likert-label {
+                font-size: 0.55rem;
+            }
+            .pagination-controls {
+                padding: 1rem 1.25rem;
+                flex-wrap: wrap;
                 gap: 10px;
+                justify-content: center;
             }
-            .btn-opt {
-                min-height: 48px;
-                padding: 10px 14px;
-                font-size: 0.85rem;
-                border-radius: 10px;
-            }
-
-            .submit-container {
-                margin-top: 2rem;
-                padding-bottom: 3rem;
-            }
-            .btn-submit-modern {
-                width: 100%;
-                padding: 14px 20px;
-                font-size: 1rem;
-                border-radius: 14px;
+            .btn-page {
+                padding: 8px 16px;
+                font-size: 0.82rem;
             }
         }
 
         @media (max-width: 480px) {
-            .section-header { padding: 0.85rem 0.85rem; }
-            .section-title { font-size: 0.82rem; }
-            .q-item { padding: 1rem 0.75rem; }
-            .q-label { font-size: 0.88rem; }
-            .form-control, .form-select { font-size: 0.85rem; padding: 0.65rem 0.85rem; }
-            .btn-opt { font-size: 0.8rem; min-height: 42px; padding: 8px 10px; }
-            .btn-submit-modern { font-size: 0.9rem; padding: 12px 16px; }
+            .section-header { padding: 1rem; }
+            .q-item { padding: 1rem; }
+            .q-label { font-size: 0.85rem; gap: 6px; }
+            .q-num { min-width: 22px; font-size: 0.85rem; }
+            .segmented-group { flex-direction: column; }
+            .segmented-btn { min-width: auto; }
+            .input-group-modern input,
+            .input-group-modern select,
+            .input-group-modern textarea {
+                font-size: 0.85rem;
+                padding: 0.7rem 0.85rem 0.7rem 2.5rem;
+            }
         }
     </style>
-    ";
+    ';
+
+    // --- Input icon mapping by question type ---
+    $input_icons = [
+        'text' => 'bi-pencil-square',
+        'number' => 'bi-hash',
+        'textarea' => 'bi-pencil-square',
+        'select' => 'bi-chevron-down',
+    ];
 
     // --- FORM START ---
-    echo '<div class="form-branding">
-            <div class="mb-3">
-                <img src="../assets/logo_lobar.png" class="brand-logo-small">
-                <img src="../assets/logo_disarpus.png" class="brand-logo-small">
-            </div>
-          </div>';
-    echo '<div class="d-flex justify-content-end mb-4">
-            <button type="button" onclick="handleClearForm()" class="btn btn-sm btn-outline-danger shadow-sm px-3" style="border-radius: 50px; font-weight: 700;">
-                <i class="bi bi-trash3-fill me-1"></i> Kosongkan Formulir
+    echo '<div class="survey-form-wrapper">';
+    
+    echo '<div class="form-toolbar">
+            <button type="button" onclick="handleClearForm()" class="btn-clear-form">
+                <i class="bi bi-trash3"></i> Kosongkan Formulir
             </button>
           </div>';
     
@@ -433,58 +623,56 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
             text: "Seluruh jawaban yang telah Anda isi akan dihapus permanen.",
             icon: "warning",
             showCancelButton: true,
-            confirmButtonColor: "#dc3545",
-            cancelButtonColor: "#6c757d",
+            confirmButtonColor: "#EF4444",
+            cancelButtonColor: "#64748B",
             confirmButtonText: "Ya, Kosongkan",
             cancelButtonText: "Batal"
         }).then((result) => {
             if (result.isConfirmed) {
                 if(window.clearSurveyDraft) window.clearSurveyDraft();
                 document.getElementById("formKuesioner").reset();
-                // Untuk radio buttons/likert yang dicustom dengan CSS, butuh uncheck manual jika reset tidak trigger
                 document.querySelectorAll(".btn-check").forEach(radio => radio.checked = false);
-                window.location.reload(); // Reload untuk memastikan state bersih total
+                window.location.reload();
             }
         });
     }
     </script>';
 
-    // --- LOOP KATEGORI ---
-    // --- LOOP KATEGORI & COLLECT ID ---
+    // --- LOOP KATEGORI & COLLECT DATA ---
     $nomor_soal = 1;
     $navigator_data = [];
+    $section_question_counts = [];
     foreach ($pertanyaan_ordered as $kategori => $items) {
+        $section_question_counts[$kategori] = count($items);
         foreach ($items as $p) {
             $navigator_data[] = [
                 'num' => $nomor_soal++,
-                'id' => $p['id']
+                'id' => $p['id'],
+                'section' => $kategori
             ];
         }
     }
 
-    // Render Navigator
-    echo '<div class="q-navigator">
-            <div class="nav-header">
-                <span>Peta Navigasi Soal</span>
-            </div>
-            <div class="nav-grid">';
-            foreach($navigator_data as $nav) {
-                echo '<a href="javascript:void(0)" onclick="jumpTo('.$nav['id'].')" class="nav-dot" id="nav_dot_'.$nav['id'].'">'.$nav['num'].'</a>';
-            }
-    echo '  </div>
-          </div>';
-
-    $nomor_soal = 1; // Reset for actual form render
+    // Render sections
+    $nomor_soal = 1;
+    $section_index = 0;
     foreach ($pertanyaan_ordered as $kategori => $items) {
-        echo '<div class="section-card">';
+        $icon = get_section_icon($kategori, $section_icons);
+        $activeClass = ($section_index === 0) ? ' active' : '';
+        $qCount = count($items);
         
-        // Header Bagian
+        echo '<div class="section-card'.$activeClass.'" data-section-index="'.$section_index.'" data-section-name="'.htmlspecialchars($kategori).'">';
+        
+        // Header
         echo '<div class="section-header">
-                <i class="bi bi-bookmark-check-fill fs-4 text-secondary"></i>
-                <h2 class="section-title">'.$kategori.'</h2>
+                <div class="section-header-icon"><i class="bi '.$icon.'"></i></div>
+                <div class="section-header-text">
+                    <h2>'.htmlspecialchars($kategori).'</h2>
+                    <p>Lengkapi informasi pada bagian ini</p>
+                </div>
               </div>';
         
-        echo '<div>'; // Wrapper Konten
+        echo '<div>';
 
         foreach ($items as $index => $p) {
             $id = $p['id'];
@@ -515,117 +703,211 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
             }
             $readonly = ($val !== '') ? 'readonly' : '';
 
-            // Parsing Opsi (Jika ada, pisahkan koma)
+            // Parsing Opsi
             $opsi_custom = [];
             if (!empty($p['pilihan_opsi'])) {
                 $opsi_custom = array_map('trim', explode(',', $p['pilihan_opsi']));
             }
 
-            echo '<div class="q-item" id="q_wrapper_'.$id.'">';
+            echo '<div class="q-item" id="q_wrapper_'.$id.'" data-q-id="'.$id.'">';
             
-            // 1. Label
-            echo '<label class="q-label" for="inp_'.$id.'">';
-            echo '<span class="q-num">'.$nomor_soal.'.</span> ' . $label;
+            // Label
+            echo '<div class="q-label">';
+            echo '<span class="q-num">'.$nomor_soal.'.</span>';
+            echo '<span>' . $label;
             if (empty($readonly)) echo '<span class="req-star" title="Wajib diisi">*</span>';
-            echo '</label>';
-            $nomor_soal++; // Increment nomor soal global
+            echo '</span>';
+            echo '</div>';
+            $nomor_soal++;
 
-            // 2. Keterangan
+            // Keterangan
             if (!empty($keterangan)) {
-                echo '<div style="padding-left: 34px;"><div class="q-hint"><i class="bi bi-info-circle me-2"></i>'.$keterangan.'</div></div>';
+                echo '<div class="q-hint"><i class="bi bi-info-circle"></i> '.$keterangan.'</div>';
             }
 
-            // Wrapper Input (Indentasi Rapi)
-            echo '<div style="padding-left: 34px;">';
+            // Input wrapper
+            echo '<div class="input-wrapper">';
 
-            // --- RENDER TIPE INPUT ---
-            
             // A. Text / Number
             if ($tipe == 'text' || $tipe == 'number') {
-                echo '<input type="'.$tipe.'" id="inp_'.$id.'" name="jawaban['.$id.']" class="form-control" 
-                       value="'.$val.'" '.$readonly.' required placeholder="Jawaban Anda...">';
+                $inputIcon = ($tipe == 'number') ? 'bi-hash' : 'bi-pencil-square';
+                // Detect specific field types for better icons
+                $label_lower = strtolower($p['teks_pertanyaan']);
+                if (strpos($label_lower, 'usia') !== false || strpos($label_lower, 'umur') !== false) $inputIcon = 'bi-calendar3';
+                if (strpos($label_lower, 'whatsapp') !== false || strpos($label_lower, 'kontak') !== false || strpos($label_lower, 'telepon') !== false || strpos($label_lower, 'hp') !== false) $inputIcon = 'bi-whatsapp';
+                if (strpos($label_lower, 'nama') !== false) $inputIcon = 'bi-person';
+                if (strpos($label_lower, 'email') !== false) $inputIcon = 'bi-envelope';
+                if (strpos($label_lower, 'pekerjaan') !== false) $inputIcon = 'bi-briefcase';
+                
+                echo '<div class="input-group-modern">
+                        <i class="bi '.$inputIcon.' input-icon"></i>
+                        <input type="'.$tipe.'" id="inp_'.$id.'" name="jawaban['.$id.']" 
+                               value="'.$val.'" '.$readonly.' required 
+                               placeholder="Masukkan jawaban Anda">
+                      </div>';
             }
             
             // B. Textarea
             elseif ($tipe == 'textarea') {
-                echo '<textarea id="inp_'.$id.'" name="jawaban['.$id.']" class="form-control" rows="3" required placeholder="Tuliskan jawaban lengkap...">'.$val.'</textarea>';
+                echo '<div class="input-group-modern">
+                        <i class="bi bi-pencil-square input-icon" style="top:14px;"></i>
+                        <textarea id="inp_'.$id.'" name="jawaban['.$id.']" rows="3" required 
+                                  placeholder="Tuliskan jawaban lengkap...">'.$val.'</textarea>
+                      </div>';
             }
             
             // C. Dropdown (Select)
             elseif ($tipe == 'select') {
-                echo '<select id="inp_'.$id.'" name="jawaban['.$id.']" class="form-select" required>';
-                echo '<option value="" selected disabled>-- Pilih Jawaban --</option>';
+                $selectIcon = 'bi-list-ul';
+                $label_lower = strtolower($p['teks_pertanyaan']);
+                if (strpos($label_lower, 'pendidikan') !== false) $selectIcon = 'bi-mortarboard';
+                if (strpos($label_lower, 'provinsi') !== false || strpos($label_lower, 'kabupaten') !== false || strpos($label_lower, 'kota') !== false) $selectIcon = 'bi-geo-alt';
+                if (strpos($label_lower, 'jenis kelamin') !== false || strpos($label_lower, 'gender') !== false) $selectIcon = 'bi-people';
                 
-                // Gunakan Opsi Custom dari DB jika ada, jika tidak pakai Default Ya/Tidak
+                echo '<div class="input-group-modern">
+                        <i class="bi '.$selectIcon.' input-icon"></i>
+                        <select id="inp_'.$id.'" name="jawaban['.$id.']" required>';
+                echo '<option value="" selected disabled>Pilih jawaban Anda</option>';
+                
                 $list_opsi = !empty($opsi_custom) ? $opsi_custom : ['Ya', 'Tidak'];
                 
                 foreach ($list_opsi as $opt) {
                     $opt_safe = htmlspecialchars($opt, ENT_QUOTES);
                     echo '<option value="'.$opt_safe.'">'.$opt_safe.'</option>';
                 }
-                echo '</select>';
+                echo '</select></div>';
             }
             
-            // D. Radio Button & Likert (Tampilan Kartu/Grid)
-            elseif ($tipe == 'radio' || $tipe == 'likert') {
+            // D. Radio Button (Segmented buttons)
+            elseif ($tipe == 'radio') {
+                $list_opsi = [];
+                foreach($opsi_custom as $oc) $list_opsi[$oc] = $oc;
                 
-                // Tentukan opsi
-                if ($tipe == 'likert') {
-                    $list_opsi = [
-                        '1' => 'Sangat Tidak Setuju',
-                        '2' => 'Tidak Setuju',
-                        '3' => 'Setuju',
-                        '4' => 'Sangat Setuju'
-                    ];
-                } else {
-                    // Untuk Radio biasa, array key & value sama
-                    $list_opsi = [];
-                    foreach($opsi_custom as $oc) $list_opsi[$oc] = $oc;
-                }
-
-                echo '<div class="opt-grid">';
+                echo '<div class="segmented-group">';
                 foreach ($list_opsi as $val_opt => $label_opt) {
                     $val_safe = htmlspecialchars((string)$val_opt, ENT_QUOTES);
                     $label_safe = htmlspecialchars((string)$label_opt, ENT_QUOTES);
                     $id_safe = preg_replace('/[^a-zA-Z0-9_\-]/', '_', (string)$val_opt);
-                    echo '
-                    <div>
-                        <input type="radio" class="btn-check" name="jawaban['.$id.']" id="opt_'.$id.'_'.$id_safe.'" value="'.$val_safe.'" required>
-                        <label class="btn-opt" for="opt_'.$id.'_'.$id_safe.'">
-                            '.$label_safe.'
-                        </label>
-                    </div>';
+                    echo '<div>
+                            <input type="radio" class="btn-check" name="jawaban['.$id.']" id="opt_'.$id.'_'.$id_safe.'" value="'.$val_safe.'" required>
+                            <label class="segmented-btn" for="opt_'.$id.'_'.$id_safe.'">'.$label_safe.'</label>
+                          </div>';
+                }
+                echo '</div>';
+            }
+            
+            // E. Likert Scale — Compact Horizontal
+            elseif ($tipe == 'likert') {
+                $list_opsi = [
+                    '1' => 'STS',
+                    '2' => 'TS',
+                    '3' => 'S',
+                    '4' => 'SS'
+                ];
+                
+                echo '<div class="likert-scale">';
+                foreach ($list_opsi as $val_opt => $label_opt) {
+                    $val_safe = htmlspecialchars((string)$val_opt, ENT_QUOTES);
+                    echo '<input type="radio" class="btn-check" name="jawaban['.$id.']" id="opt_'.$id.'_'.$val_safe.'" value="'.$val_safe.'" required>
+                          <label class="likert-option" for="opt_'.$id.'_'.$val_safe.'">
+                              <span class="likert-value">'.$val_safe.'</span>
+                              <span class="likert-label">'.$label_opt.'</span>
+                          </label>';
                 }
                 echo '</div>';
             }
 
-            echo '</div>'; // End wrapper input
+            echo '</div>'; // End input-wrapper
             echo '</div>'; // End q-item
         }
-        echo '</div>'; // End wrapper content
+        echo '</div>'; // End content wrapper
         echo '</div>'; // End section card
+        
+        $section_index++;
     }
 
-    // --- FOOTER ---
+    // --- PAGINATION CONTROLS ---
     echo '
-    <div class="submit-container">
-        <button type="button" onclick="konfirmasiKirim()" class="btn-submit-modern">
-            <i class="bi bi-send-check me-2"></i> SIMPAN JAWABAN
+    <div class="pagination-controls" id="paginationControls">
+        <button type="button" class="btn-page btn-page-prev" id="btnPrev" onclick="navigateSection(-1)" disabled>
+            <i class="bi bi-arrow-left"></i> Sebelumnya
         </button>
-        <div class="mt-3 text-muted small">
-            <i class="bi bi-shield-lock"></i> Data Anda tersimpan aman dan rahasia.
-        </div>
-    </div>
+        <span class="page-indicator" id="pageIndicator">Halaman 1 dari '.$total_sections.'</span>
+        <button type="button" class="btn-page btn-page-next" id="btnNext" onclick="navigateSection(1)">
+            Selanjutnya <i class="bi bi-arrow-right"></i>
+        </button>
+    </div>';
+
+    // --- SUBMIT (hidden until last page) ---
+    echo '
+    <div class="submit-container" id="submitContainer" style="display:none;">
+        <button type="button" onclick="konfirmasiKirim()" class="btn-submit-modern">
+            <i class="bi bi-send-check"></i> Simpan Jawaban
+        </button>
+    </div>';
+
+    // --- PRIVACY BAR ---
+    echo '
+    <div class="privacy-bar">
+        <i class="bi bi-shield-lock-fill"></i>
+        Data Anda aman dan hanya digunakan untuk keperluan survei literasi masyarakat.
+    </div>';
     
-    </form>';
+    echo '</form>';
+    echo '</div>'; // End survey-form-wrapper
 
     // --- JS LOGIC ---
     echo "
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- Auto-Scroll to Next Question ---
         const form = document.getElementById('formKuesioner');
-        
+        const totalSections = " . $total_sections . ";
+        const totalQuestions = " . $total_questions . ";
+        let currentSection = 0;
+
+        // ===== PAGINATION =====
+        function showSection(index) {
+            document.querySelectorAll('.section-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            const target = document.querySelector('.section-card[data-section-index=\"' + index + '\"]');
+            if (target) {
+                target.classList.add('active');
+                // Scroll to top of form area
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            
+            // Update pagination buttons
+            document.getElementById('btnPrev').disabled = (index === 0);
+            document.getElementById('pageIndicator').textContent = 'Halaman ' + (index + 1) + ' dari ' + totalSections;
+            
+            const isLast = (index === totalSections - 1);
+            document.getElementById('btnNext').style.display = isLast ? 'none' : '';
+            document.getElementById('submitContainer').style.display = isLast ? '' : 'none';
+            
+            // Update sidebar if exists
+            if (window.updateSidebarActive) {
+                window.updateSidebarActive(index);
+            }
+            
+            currentSection = index;
+        }
+
+        window.navigateSection = function(direction) {
+            const newIndex = currentSection + direction;
+            if (newIndex >= 0 && newIndex < totalSections) {
+                showSection(newIndex);
+            }
+        };
+
+        // Allow sidebar to jump to section
+        window.jumpToSection = function(index) {
+            if (index >= 0 && index < totalSections) {
+                showSection(index);
+            }
+        };
+
+        // ===== AUTO-SCROLL TO NEXT QUESTION =====
         form.addEventListener('change', function(e) {
             if (e.target.matches('input[type=\"radio\"]') || e.target.tagName === 'SELECT') {
                 scrollToNext(e.target);
@@ -646,23 +928,17 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
             if (!currentItem) return;
 
             let nextItem = currentItem.nextElementSibling;
+            // If nextItem is not a q-item (could be end of section), check within wrapper
+            if (nextItem && !nextItem.classList.contains('q-item')) nextItem = null;
+            
             if (!nextItem) {
-                const currentCard = currentItem.closest('.section-card');
-                if (currentCard) {
-                    let nextCard = currentCard.nextElementSibling;
-                    while (nextCard && !nextCard.classList.contains('section-card')) {
-                        nextCard = nextCard.nextElementSibling;
-                    }
-                    if (nextCard) {
-                        nextItem = nextCard.querySelector('.q-item');
-                    } else {
-                        nextItem = document.querySelector('.submit-container');
-                    }
-                }
+                // We're at the last question of the current section
+                // Don't auto-advance to next section
+                return;
             }
 
             if (nextItem) {
-                const scrollDelay = focusNext ? 0 : 400;
+                const scrollDelay = focusNext ? 0 : 300;
                 setTimeout(() => {
                     nextItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     if (focusNext) {
@@ -675,7 +951,7 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
             }
         }
 
-        // --- Perisistence Logic (localStorage) ---
+        // ===== PERSISTENCE (localStorage) =====
         const gJenis = document.querySelector('input[name=\"jenis_kuesioner\"]');
         const gLib = document.querySelector('input[name=\"library_id\"]');
         if (!gJenis || !gLib) return;
@@ -705,85 +981,136 @@ function render_dynamic_form($pdo, $jenis_kuesioner, $library_id, $defaults = []
             }
         });
 
-        // Clear storage on submit
         window.clearSurveyDraft = () => localStorage.removeItem(storageKey);
 
-        // --- Question Navigator Functions ---
-        window.jumpTo = (id) => {
-            const el = document.getElementById('q_wrapper_' + id);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        };
-
-        const updateNavStatus = () => {
+        // ===== PROGRESS TRACKING =====
+        window.getSurveyProgress = function() {
             let filledCount = 0;
-            const total = " . count($navigator_data) . ";
-            
-            // Periksa setiap input jawaban
-            document.querySelectorAll(\".q-item\").forEach(item => {
-                const id = item.id.replace(\"q_wrapper_\", \"\");
-                const dot = document.getElementById(\"nav_dot_\" + id);
-                if (!dot) return;
+            let sectionProgress = {};
 
-                // Cek apakah ada input di dalamnya yang terisi
-                const inputs = item.querySelectorAll(\"input, select, textarea\");
-                let isFilled = false;
+            document.querySelectorAll('.section-card').forEach(card => {
+                const sectionName = card.getAttribute('data-section-name');
+                const sectionIdx = card.getAttribute('data-section-index');
+                let sectionFilled = 0;
+                let sectionTotal = 0;
 
-                inputs.forEach(inp => {
-                    if (inp.type === \"radio\") {
-                        if (inp.checked) isFilled = true;
-                    } else {
-                        if (inp.value.trim() !== \"\") isFilled = true;
+                card.querySelectorAll('.q-item').forEach(item => {
+                    sectionTotal++;
+                    const inputs = item.querySelectorAll('input, select, textarea');
+                    let isFilled = false;
+
+                    inputs.forEach(inp => {
+                        if (inp.type === 'hidden') return;
+                        if (inp.type === 'radio') {
+                            if (inp.checked) isFilled = true;
+                        } else {
+                            if (inp.value.trim() !== '') isFilled = true;
+                        }
+                    });
+
+                    if (isFilled) {
+                        sectionFilled++;
+                        filledCount++;
                     }
                 });
 
-                if (isFilled) {
-                    dot.classList.add(\"filled\");
-                    filledCount++;
-                } else {
-                    dot.classList.remove(\"filled\");
-                }
+                sectionProgress[sectionIdx] = {
+                    name: sectionName,
+                    filled: sectionFilled,
+                    total: sectionTotal
+                };
             });
+
+            return {
+                filledCount: filledCount,
+                totalQuestions: totalQuestions,
+                percentage: totalQuestions > 0 ? Math.round((filledCount / totalQuestions) * 100) : 0,
+                sections: sectionProgress
+            };
         };
 
-        // Trigger update on load & change
-        setTimeout(updateNavStatus, 500);
-        form.addEventListener(\"input\", updateNavStatus);
-        form.addEventListener(\"change\", updateNavStatus);
+        // Update progress on interaction
+        const updateProgress = () => {
+            const progress = window.getSurveyProgress();
+            // Update hero progress if exists
+            if (window.updateHeroProgress) {
+                window.updateHeroProgress(progress);
+            }
+            // Update sidebar progress if exists
+            if (window.updateSidebarProgress) {
+                window.updateSidebarProgress(progress);
+            }
+        };
+
+        setTimeout(updateProgress, 300);
+        form.addEventListener('input', updateProgress);
+        form.addEventListener('change', updateProgress);
+
+        // Show first section
+        showSection(0);
     });
 
     function konfirmasiKirim() {
         const form = document.getElementById('formKuesioner');
         
-        // 1. Validasi Native HTML5
+        // Validate ALL sections, not just visible one
+        const allSections = document.querySelectorAll('.section-card');
+        let firstInvalidSection = -1;
+        let firstInvalid = null;
+
+        allSections.forEach(section => {
+            section.classList.add('active'); // Temporarily show all for validation
+        });
+
         if (!form.checkValidity()) {
-            form.reportValidity();
-            // Scroll halus ke error pertama
-            const invalid = form.querySelector(':invalid');
-            if(invalid) {
-                invalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Tambahkan efek visual pada card parent
-                const parent = invalid.closest('.q-item');
-                if(parent) {
-                    parent.style.backgroundColor = '#fff0f0';
-                    setTimeout(() => parent.style.backgroundColor = '', 2000);
+            firstInvalid = form.querySelector(':invalid');
+            if (firstInvalid) {
+                const parentSection = firstInvalid.closest('.section-card');
+                if (parentSection) {
+                    firstInvalidSection = parseInt(parentSection.getAttribute('data-section-index'));
                 }
-                invalid.focus();
             }
+        }
+
+        // Restore pagination state
+        allSections.forEach(section => {
+            section.classList.remove('active');
+        });
+
+        if (firstInvalidSection >= 0) {
+            window.jumpToSection(firstInvalidSection);
+            setTimeout(() => {
+                form.reportValidity();
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const parent = firstInvalid.closest('.q-item');
+                    if (parent) {
+                        parent.style.backgroundColor = '#FEF2F2';
+                        setTimeout(() => parent.style.backgroundColor = '', 2000);
+                    }
+                    firstInvalid.focus();
+                }
+            }, 100);
             return;
         }
 
-        // 2. SweetAlert Formal
+        // Re-show current section
+        const currentIdx = parseInt(document.querySelector('.section-card.active')?.getAttribute('data-section-index') || allSections.length - 1);
+        window.jumpToSection(currentIdx >= 0 ? currentIdx : allSections.length - 1);
+
         Swal.fire({
             title: 'Konfirmasi Kirim',
             text: 'Pastikan seluruh jawaban sudah sesuai. Lanjutkan?',
             icon: 'info',
             showCancelButton: true,
-            confirmButtonColor: '#2c3e50',
-            cancelButtonColor: '#95a5a6',
+            confirmButtonColor: '#2563EB',
+            cancelButtonColor: '#64748B',
             confirmButtonText: 'Ya, Kirim Data',
             cancelButtonText: 'Periksa Lagi'
         }).then((result) => {
             if (result.isConfirmed) {
+                // Show all sections before submit so all fields are submitted
+                document.querySelectorAll('.section-card').forEach(s => s.classList.add('active'));
                 Swal.fire({
                     title: 'Memproses...',
                     text: 'Mohon tunggu sebentar',
