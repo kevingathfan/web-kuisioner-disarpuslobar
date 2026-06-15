@@ -8,7 +8,7 @@ class Database {
     private $host = 'localhost';
     private $user = 'root';
     private $pass = '';
-    private $dbname = 'db_perpustakaan';
+    private $dbname = 'monitoring_perpus_db';
 
     private $dbh;
     private $stmt;
