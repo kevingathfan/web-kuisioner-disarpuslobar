@@ -1,0 +1,753 @@
+﻿<?php
+// web-perpus-v1/admin/atur_pertanyaan.php
+session_start();
+require '../config/database.php';
+require '../config/admin_auth.php';
+
+// Pastikan tabel kategori_bagian ada (untuk manajemen bagian/label)
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS kategori_bagian (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        jenis_kuesioner VARCHAR(10) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        position INT NOT NULL DEFAULT 0,
+        numbering_style ENUM('numeric','roman','none') NOT NULL DEFAULT 'numeric',
+        manual_label VARCHAR(255) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Migrasi otomatis kategori yang sudah ada jika tabel masih kosong
+    $stmtChk = $pdo->query("SELECT COUNT(*) FROM kategori_bagian");
+    $exists = (int)$stmtChk->fetchColumn();
+    if ($exists === 0) {
+        $stmtDistinct = $pdo->query("SELECT jenis_kuesioner, kategori_bagian, MIN(id) AS first_id FROM master_pertanyaan GROUP BY jenis_kuesioner, kategori_bagian ORDER BY jenis_kuesioner, MIN(id)");
+        $rows = $stmtDistinct->fetchAll(PDO::FETCH_ASSOC);
+        $stmtIns = $pdo->prepare("INSERT INTO kategori_bagian (jenis_kuesioner, name, position, numbering_style) VALUES (?, ?, ?, 'numeric')");
+        $lastJenis = null;
+        $pos = 1;
+        foreach ($rows as $r) {
+            if ($r['jenis_kuesioner'] !== $lastJenis) {
+                $pos = 1;
+                $lastJenis = $r['jenis_kuesioner'];
+            }
+            $stmtIns->execute([$r['jenis_kuesioner'], $r['kategori_bagian'], $pos]);
+            $pos++;
+        }
+    } else {
+        // Sync missing categories (jika ada kategori baru di master_pertanyaan tapi belum ada di kategori_bagian)
+        $sqlMiss = "SELECT DISTINCT m.jenis_kuesioner, m.kategori_bagian 
+                    FROM master_pertanyaan m 
+                    LEFT JOIN kategori_bagian k ON k.jenis_kuesioner = m.jenis_kuesioner AND k.name = m.kategori_bagian
+                    WHERE k.id IS NULL AND m.kategori_bagian IS NOT NULL AND m.kategori_bagian <> ''";
+        $stmtMiss = $pdo->query($sqlMiss);
+        $missing = $stmtMiss->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (!empty($missing)) {
+            $stmtMaxPosKB = $pdo->prepare("SELECT COALESCE(MAX(position), 0) FROM kategori_bagian WHERE jenis_kuesioner = ?");
+            $stmtInsKB = $pdo->prepare("INSERT INTO kategori_bagian (jenis_kuesioner, name, position) VALUES (?, ?, ?)");
+            
+            foreach ($missing as $row) {
+                $j = $row['jenis_kuesioner'];
+                $n = $row['kategori_bagian'];
+                
+                $stmtMaxPosKB->execute([$j]);
+                $pos = (int)$stmtMaxPosKB->fetchColumn() + 1;
+                
+                $stmtInsKB->execute([$j, $n, $pos]);
+            }
+        }
+    }
+} catch (Exception $e) {
+    // jangan gagalkan halaman jika pembuatan tabel/migrasi gagal
+}
+
+if (!empty($_GET) && (isset($_GET['tab']) || isset($_GET['page_iplm']) || isset($_GET['page_tkm']))) {
+    $_SESSION['atur_pertanyaan_state'] = [
+        'tab' => $_GET['tab'] ?? 'iplm',
+        'page_iplm' => (int)($_GET['page_iplm'] ?? 1),
+        'page_tkm' => (int)($_GET['page_tkm'] ?? 1),
+    ];
+    header("Location: atur_pertanyaan.php");
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nav_only'])) {
+    $_SESSION['atur_pertanyaan_state'] = [
+        'tab' => $_POST['tab'] ?? 'iplm',
+        'page_iplm' => max(1, (int)($_POST['page_iplm'] ?? 1)),
+        'page_tkm' => max(1, (int)($_POST['page_tkm'] ?? 1)),
+    ];
+    header("Location: atur_pertanyaan.php");
+    exit;
+}
+
+// --- 1. PROSES CRUD ---
+$pesan = "";
+$pesan_type = "success"; // success atau danger
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'import_csv') {
+            if (!isset($_FILES['file_csv']) || $_FILES['file_csv']['error'] !== 0) {
+                throw new Exception("Gagal upload CSV.");
+            }
+
+            $file = $_FILES['file_csv']['tmp_name'];
+            $orig = $_FILES['file_csv']['name'] ?? '';
+            $size = $_FILES['file_csv']['size'] ?? 0;
+            $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+            if ($ext !== 'csv') {
+                throw new Exception("File harus berformat .csv");
+            }
+            if ($size > 2 * 1024 * 1024) {
+                throw new Exception("Ukuran file maksimal 2MB.");
+            }
+
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($file);
+            $allowed_mime = ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'];
+            if ($mime && !in_array($mime, $allowed_mime, true)) {
+                throw new Exception("Tipe file tidak valid.");
+            }
+
+            $handle = fopen($file, "r");
+            if (!$handle) throw new Exception("File CSV tidak bisa dibuka.");
+
+            $header = fgetcsv($handle);
+            if (!$header) {
+                fclose($handle);
+                throw new Exception("CSV kosong.");
+            }
+
+            $header_map = [];
+            $lower = array_map(function($h){ return strtolower(trim($h)); }, $header);
+            $has_header = in_array('jenis_kuesioner', $lower, true) || in_array('jenis', $lower, true);
+            if ($has_header) {
+                foreach ($lower as $i => $h) {
+                    $header_map[$h] = $i;
+                }
+            } else {
+                rewind($handle);
+            }
+
+            $allowed_tipe = ['text','number','textarea','likert','select','radio'];
+            $count_cache = [];
+            $sukses = 0; $gagal = 0;
+
+            $stmtInsert = $pdo->prepare("INSERT INTO master_pertanyaan (jenis_kuesioner, kategori_bagian, teks_pertanyaan, keterangan, tipe_input, pilihan_opsi, urutan) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmtShift = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan + 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) >= ?");
+
+            while (($row = fgetcsv($handle, 2000, ",")) !== false) {
+                if ($has_header) {
+                    $jenis = $row[$header_map['jenis_kuesioner'] ?? $header_map['jenis'] ?? -1] ?? '';
+                    $bagian = $row[$header_map['kategori_bagian'] ?? $header_map['kategori'] ?? -1] ?? '';
+                    $soal = $row[$header_map['teks_pertanyaan'] ?? $header_map['pertanyaan'] ?? -1] ?? '';
+                    $keterangan = $row[$header_map['keterangan'] ?? -1] ?? '';
+                    $tipe = $row[$header_map['tipe_input'] ?? $header_map['tipe'] ?? -1] ?? '';
+                    $pilihan_opsi = $row[$header_map['pilihan_opsi'] ?? $header_map['opsi'] ?? -1] ?? '';
+                    $urutan = $row[$header_map['urutan'] ?? -1] ?? '';
+                } else {
+                    $jenis = $row[0] ?? '';
+                    $bagian = $row[1] ?? '';
+                    $soal = $row[2] ?? '';
+                    $keterangan = $row[3] ?? '';
+                    $tipe = $row[4] ?? '';
+                    $pilihan_opsi = $row[5] ?? '';
+                    $urutan = $row[6] ?? '';
+                }
+
+                $jenis = strtoupper(trim((string)$jenis));
+                $bagian = trim((string)$bagian);
+                $soal = trim((string)$soal);
+                $keterangan = trim((string)$keterangan);
+                $tipe = strtolower(trim((string)$tipe));
+                $pilihan_opsi = trim((string)$pilihan_opsi);
+                $urutan = (int)$urutan;
+
+                if (!in_array($jenis, ['IPLM','TKM'], true) || $bagian === '' || $soal === '') {
+                    $gagal++; 
+                    continue;
+                }
+                if (!in_array($tipe, $allowed_tipe, true)) $tipe = 'text';
+
+                // AUTO-CREATE KATEGORI BAGIAN IF NOT EXISTS
+                $stmtCheckBagian = $pdo->prepare("SELECT id FROM kategori_bagian WHERE jenis_kuesioner = ? AND name = ? LIMIT 1");
+                $stmtCheckBagian->execute([$jenis, $bagian]);
+                if (!$stmtCheckBagian->fetch()) {
+                    $stmtMaxPosKB = $pdo->prepare("SELECT COALESCE(MAX(position), 0) FROM kategori_bagian WHERE jenis_kuesioner = ?");
+                    $stmtMaxPosKB->execute([$jenis]);
+                    $newPosKB = (int)$stmtMaxPosKB->fetchColumn() + 1;
+                    
+                    $stmtInsKB = $pdo->prepare("INSERT INTO kategori_bagian (jenis_kuesioner, name, position) VALUES (?, ?, ?)");
+                    $stmtInsKB->execute([$jenis, $bagian, $newPosKB]);
+                }
+
+                $key = $jenis . '|' . $bagian;
+                if (!isset($count_cache[$key])) {
+                    $stmtMax = $pdo->prepare("SELECT MAX(CAST(urutan AS UNSIGNED)) FROM master_pertanyaan WHERE jenis_kuesioner = ? AND kategori_bagian = ?");
+                    $stmtMax->execute([$jenis, $bagian]);
+                    $count_cache[$key] = (int)$stmtMax->fetchColumn();
+                }
+                $currentMax = (int)$count_cache[$key];
+                $maxPos = $currentMax + 1;
+                
+                if ($urutan < 1) $urutan = $maxPos;
+                if ($urutan > $maxPos) $urutan = $maxPos;
+
+                try {
+                    // geser urutan agar tidak duplikasi
+                    $stmtShift->execute([$jenis, $bagian, $urutan]);
+                    $stmtInsert->execute([$jenis, $bagian, $soal, $keterangan, $tipe, $pilihan_opsi, $urutan]);
+                    $count_cache[$key] = max($count_cache[$key], $urutan);
+                    $sukses++;
+                } catch (Exception $e) {
+                    $gagal++;
+                }
+            }
+            fclose($handle);
+
+            $_SESSION['flash_message'] = "Import selesai. Berhasil: $sukses. Gagal: $gagal.";
+            header("Location: atur_pertanyaan.php"); exit;
+        }
+
+        // CSV Import Logic Removed
+
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'bulk_delete') {
+            $ids = $_POST['ids'] ?? [];
+            if (!empty($ids) && is_array($ids)) {
+                $ids = array_map('intval', $ids);
+                $ids = array_filter($ids);
+                
+                if (!empty($ids)) {
+                    $inQuery = implode(',', array_fill(0, count($ids), '?'));
+                    $pdo->beginTransaction();
+                    try {
+                        $stmt = $pdo->prepare("DELETE FROM master_pertanyaan WHERE id IN ($inQuery)");
+                        $stmt->execute($ids);
+                        $pdo->commit();
+                        $_SESSION['flash_message'] = count($ids) . " pertanyaan terpilih berhasil dihapus.";
+                    } catch (Exception $e) {
+                         if ($pdo->inTransaction()) $pdo->rollBack();
+                         throw $e;
+                    }
+                }
+            }
+            $redirectTab = $_POST['tab'] ?? 'iplm';
+            $redirectPageIplm = (int)($_POST['page_iplm'] ?? 1);
+            $redirectPageTkm = (int)($_POST['page_tkm'] ?? 1);
+            $_SESSION['atur_pertanyaan_state'] = [
+                'tab' => $redirectTab,
+                'page_iplm' => max(1, $redirectPageIplm),
+                'page_tkm' => max(1, $redirectPageTkm),
+            ];
+            header("Location: atur_pertanyaan.php"); exit;
+        }
+
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'set_kontak_iplm') {
+            $kontak_id = (int)($_POST['kontak_pertanyaan_id'] ?? 0);
+            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES ('iplm_kontak_pertanyaan_id', ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmt->execute([$kontak_id]);
+            $_SESSION['flash_message'] = "Kontak IPLM berhasil diperbarui.";
+            $redirectTab = 'iplm';
+            $redirectPageIplm = (int)($_POST['page_iplm'] ?? 1);
+            $redirectPageTkm = (int)($_POST['page_tkm'] ?? 1);
+            $_SESSION['atur_pertanyaan_state'] = [
+                'tab' => $redirectTab,
+                'page_iplm' => max(1, $redirectPageIplm),
+                'page_tkm' => max(1, $redirectPageTkm),
+            ];
+            header("Location: atur_pertanyaan.php"); exit;
+        }
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'set_autofill_iplm') {
+            $id_jenis = (int)($_POST['autofill_jenis_id'] ?? 0);
+            $id_subjenis = (int)($_POST['autofill_subjenis_id'] ?? 0);
+            $id_nama = (int)($_POST['autofill_nama_id'] ?? 0);
+
+            $pairs = [
+                'iplm_autofill_jenis_id' => $id_jenis,
+                'iplm_autofill_subjenis_id' => $id_subjenis,
+                'iplm_autofill_nama_id' => $id_nama,
+            ];
+            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            foreach ($pairs as $key => $val) {
+                $stmt->execute([$key, $val]);
+            }
+
+            $_SESSION['flash_message'] = "Auto-fill IPLM berhasil diperbarui.";
+            $redirectTab = 'iplm';
+            $redirectPageIplm = (int)($_POST['page_iplm'] ?? 1);
+            $redirectPageTkm = (int)($_POST['page_tkm'] ?? 1);
+            $_SESSION['atur_pertanyaan_state'] = [
+                'tab' => $redirectTab,
+                'page_iplm' => max(1, $redirectPageIplm),
+                'page_tkm' => max(1, $redirectPageTkm),
+            ];
+            header("Location: atur_pertanyaan.php"); exit;
+        }
+
+        // --- Manajemen Bagian (kategori_bagian) ---
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'add_bagian') {
+            $jb = $_POST['jenis_bagian'] ?? 'IPLM';
+            $name = trim($_POST['nama_bagian'] ?? '');
+            if ($name === '') throw new Exception('Nama bagian tidak boleh kosong');
+            // FIX: Filter position by jenis_kuesioner untuk domain isolation
+            $stmtPos = $pdo->prepare("SELECT COALESCE(MAX(position),0) FROM kategori_bagian WHERE jenis_kuesioner = ?");
+            $stmtPos->execute([$jb]);
+            $pos = (int)$stmtPos->fetchColumn() + 1;
+            // Hapus numbering_style dari INSERT - gunakan setting global
+            $stmtIns = $pdo->prepare("INSERT INTO kategori_bagian (jenis_kuesioner, name, position) VALUES (?, ?, ?)");
+            $stmtIns->execute([$jb, $name, $pos]);
+            $_SESSION['flash_message'] = 'Bagian baru berhasil ditambahkan.';
+            header('Location: atur_pertanyaan.php'); exit;
+        }
+
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'edit_bagian') {
+            $id = (int)($_POST['bagian_id'] ?? 0);
+            $newName = trim($_POST['nama_bagian'] ?? '');
+            $targetPos = (int)($_POST['posisi_bagian'] ?? 0);
+            
+            if ($id <= 0) throw new Exception('ID bagian tidak valid');
+            if ($newName === '') throw new Exception('Nama bagian tidak boleh kosong');
+            if ($targetPos < 1) $targetPos = 1;
+
+            $pdo->beginTransaction();
+            try {
+                // 1. Ambil data item yang diedit
+                $stmtGet = $pdo->prepare("SELECT jenis_kuesioner, name FROM kategori_bagian WHERE id = ?");
+                $stmtGet->execute([$id]);
+                $current = $stmtGet->fetch(PDO::FETCH_ASSOC);
+                if (!$current) throw new Exception('Bagian tidak ditemukan');
+                
+                $jenis = $current['jenis_kuesioner'];
+                $stmtMaxPos = $pdo->prepare("SELECT COUNT(*) FROM kategori_bagian WHERE jenis_kuesioner = ?");
+$stmtMaxPos->execute([$jenis]);
+$maxPos = (int)$stmtMaxPos->fetchColumn();
+
+if ($targetPos > $maxPos) {
+    $targetPos = $maxPos;
+}
+
+                $oldName = $current['name'];
+
+                // 2. Update Nama (jika berubah)
+                if ($newName !== $oldName) {
+                    $stmtUpName = $pdo->prepare("UPDATE kategori_bagian SET name = ? WHERE id = ?");
+                    $stmtUpName->execute([$newName, $id]);
+                    
+                    // Update referensi di master_pertanyaan
+                    $stmtUpRef = $pdo->prepare("UPDATE master_pertanyaan SET kategori_bagian = ? WHERE jenis_kuesioner = ? AND kategori_bagian = ?");
+                    $stmtUpRef->execute([$newName, $jenis, $oldName]);
+                }
+
+                // 3. Reordering (Strategi Array Splice - Lebih Stabil)
+                // Ambil semua ID dalam jenis ini, urutkan berdasarkan posisi saat ini
+                $stmtAll = $pdo->prepare("SELECT id FROM kategori_bagian WHERE jenis_kuesioner = ? ORDER BY position ASC, id ASC");
+                $stmtAll->execute([$jenis]);
+                $ids = $stmtAll->fetchAll(PDO::FETCH_COLUMN);
+
+                // Hapus ID target dari array (jika ada)
+                $key = array_search($id, $ids);
+                if ($key !== false) {
+                    unset($ids[$key]);
+                }
+                $ids = array_values($ids); // Reindex array
+
+                // Masukkan ID target ke posisi baru
+                // targetPos 1 berarti index 0.
+                $insertIndex = $targetPos - 1;
+                if ($insertIndex < 0) $insertIndex = 0;
+                if ($insertIndex > count($ids)) $insertIndex = count($ids);
+
+                array_splice($ids, $insertIndex, 0, $id);
+
+                // 4. Update semua posisi sesuai urutan array baru
+                $stmtUpdatePos = $pdo->prepare("UPDATE kategori_bagian SET position = ? WHERE id = ?");
+                foreach ($ids as $index => $currId) {
+                    $newP = $index + 1;
+                    $stmtUpdatePos->execute([$newP, $currId]);
+                }
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+            $_SESSION['flash_message'] = 'Bagian berhasil diperbarui.';
+            header('Location: atur_pertanyaan.php'); exit;
+        }
+
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'delete_bagian') {
+            $id = (int)($_POST['bagian_id'] ?? 0);
+            if ($id <= 0) throw new Exception('ID bagian tidak valid');
+            
+            $stmtGet = $pdo->prepare("SELECT jenis_kuesioner, name FROM kategori_bagian WHERE id = ? LIMIT 1");
+            $stmtGet->execute([$id]);
+            $row = $stmtGet->fetch(PDO::FETCH_ASSOC);
+            
+            if ($row) {
+                // Delete questions first
+                $stmtDelQ = $pdo->prepare("DELETE FROM master_pertanyaan WHERE jenis_kuesioner = ? AND kategori_bagian = ?");
+                $stmtDelQ->execute([$row['jenis_kuesioner'], $row['name']]);
+            }
+            
+            $stmtDel = $pdo->prepare("DELETE FROM kategori_bagian WHERE id = ?");
+            $stmtDel->execute([$id]);
+            $_SESSION['flash_message'] = 'Bagian dan seluruh pertanyaan di dalamnya berhasil dihapus.';
+            header('Location: atur_pertanyaan.php'); exit;
+        }
+
+        // --- Ubah Global Numbering Style untuk Jenis Kuesioner ---
+        if (isset($_POST['aksi']) && $_POST['aksi'] === 'set_numbering_style') {
+            $jenis = $_POST['jenis'] ?? 'IPLM';
+            $style = $_POST['numbering_style'] ?? 'numeric';
+            if (!in_array($jenis, ['IPLM', 'TKM'], true)) throw new Exception('Jenis kuesioner tidak valid');
+            if (!in_array($style, ['numeric', 'roman', 'none'], true)) throw new Exception('Gaya penomoran tidak valid');
+            
+            $setting_key = strtolower($jenis) . '_numbering_style';
+            $stmt = $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+            $stmt->execute([$setting_key, $style]);
+            $_SESSION['flash_message'] = "Gaya penomoran $jenis berhasil diubah menjadi $style.";
+            $redirectTab = $jenis === 'TKM' ? 'tkm' : 'iplm';
+            $redirectPageIplm = (int)($_POST['page_iplm'] ?? 1);
+            $redirectPageTkm = (int)($_POST['page_tkm'] ?? 1);
+            $_SESSION['atur_pertanyaan_state'] = [
+                'tab' => $redirectTab,
+                'page_iplm' => max(1, $redirectPageIplm),
+                'page_tkm' => max(1, $redirectPageTkm),
+            ];
+            header('Location: atur_pertanyaan.php'); exit;
+        }
+
+        if (isset($_POST['aksi']) && ($_POST['aksi'] === 'tambah' || $_POST['aksi'] === 'edit')) {
+            $jenisQ = $_POST['jenis'] ?? '';
+            $bagianQ = $_POST['bagian'] ?? '';
+            
+            // Normalize inputs to arrays
+            $soalInput = $_POST['soal'] ?? [];
+            if (!is_array($soalInput)) $soalInput = [$soalInput];
+            
+            $keteranganInput = $_POST['keterangan'] ?? [];
+            if (!is_array($keteranganInput)) $keteranganInput = [$keteranganInput];
+            
+            $tipeInput = $_POST['tipe'] ?? [];
+            if (!is_array($tipeInput)) $tipeInput = [$tipeInput];
+            
+            $urutanInput = $_POST['urutan'] ?? [];
+            if (!is_array($urutanInput)) $urutanInput = [$urutanInput];
+            
+            $pilihanInput = $_POST['pilihan_opsi'] ?? [];
+            if (!is_array($pilihanInput)) $pilihanInput = [$pilihanInput];
+
+            if (empty($jenisQ) || empty($bagianQ)) {
+                throw new Exception("Jenis dan Bagian wajib diisi.");
+            }
+
+            if ($_POST['aksi'] === 'tambah') {
+                $pdo->beginTransaction();
+                try {
+                    $count = 0;
+                    // Get initial Max Order for the group
+                    $stmtMax = $pdo->prepare("SELECT MAX(CAST(urutan AS UNSIGNED)) FROM master_pertanyaan WHERE jenis_kuesioner = ? AND kategori_bagian = ?");
+                    $stmtMax->execute([$jenisQ, $bagianQ]);
+                    $maxExisting = (int)$stmtMax->fetchColumn();
+                    $nextAutoUrutan = $maxExisting + 1;
+
+                    foreach ($soalInput as $index => $soalText) {
+                        $soal = trim($soalText);
+                        if (empty($soal)) continue; // Skip empty questions
+
+                        $ket = $keteranganInput[$index] ?? '';
+                        $tipe = $tipeInput[$index] ?? 'text';
+                        $pilihan = $pilihanInput[$index] ?? '';
+                        
+                        $reqUrutan = (int)($urutanInput[$index] ?? 0);
+                        
+                        $targetUrutan = ($reqUrutan > 0) ? $reqUrutan : $nextAutoUrutan;
+                        
+                        $stmtCheckMax = $pdo->prepare("SELECT MAX(CAST(urutan AS UNSIGNED)) FROM master_pertanyaan WHERE jenis_kuesioner = ? AND kategori_bagian = ?");
+                        $stmtCheckMax->execute([$jenisQ, $bagianQ]);
+                        $currentMax = (int)$stmtCheckMax->fetchColumn();
+                        
+                        if ($targetUrutan <= $currentMax) {
+                            $stmtShift = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan + 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) >= ?");
+                            $stmtShift->execute([$jenisQ, $bagianQ, $targetUrutan]);
+                            $maxExisting++; 
+                        } else {
+                            if ($targetUrutan > $currentMax + 1) $targetUrutan = $currentMax + 1;
+                        }
+
+                        $sql = "INSERT INTO master_pertanyaan (jenis_kuesioner, kategori_bagian, teks_pertanyaan, keterangan, tipe_input, pilihan_opsi, urutan) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                        $stmt = $pdo->prepare($sql);
+                        $stmt->execute([$jenisQ, $bagianQ, $soal, $ket, $tipe, $pilihan, $targetUrutan]);
+                        
+                        $count++;
+                        
+                        // Increment for next loop if using auto
+                        if ($reqUrutan <= 0) $nextAutoUrutan = $targetUrutan + 1;
+                    }
+                    
+                    if ($count === 0) throw new Exception("Tidak ada pertanyaan yang ditambahkan.");
+                    
+                    $pdo->commit();
+                    $pesan = "Berhasil menambah $count pertanyaan baru!";
+                } catch (Exception $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    throw $e;
+                }
+            } else {
+                // EDIT MODE (Single Question)
+                $currentId = (int)($_POST['id'] ?? 0);
+                
+                // Take the first item from arrays
+                $soalQ = $soalInput[0] ?? '';
+                $keteranganQ = $keteranganInput[0] ?? '';
+                $tipeQ = $tipeInput[0] ?? 'text';
+                $urutanQ = (int)($urutanInput[0] ?? 0);
+                $pilihanQ = $pilihanInput[0] ?? '';
+                
+                if (empty($soalQ)) throw new Exception("Teks Pertanyaan wajib diisi.");
+
+                $stmtCurrent = $pdo->prepare("SELECT jenis_kuesioner, kategori_bagian, urutan FROM master_pertanyaan WHERE id = ?");
+                $stmtCurrent->execute([$currentId]);
+                $current = $stmtCurrent->fetch(PDO::FETCH_ASSOC);
+                if (!$current) throw new Exception("Data pertanyaan tidak ditemukan.");
+
+                $pdo->beginTransaction();
+                try {
+                    $sameGroup = ($current['jenis_kuesioner'] === $jenisQ) && ($current['kategori_bagian'] === $bagianQ);
+                    $stmtMax = $pdo->prepare("SELECT MAX(CAST(urutan AS UNSIGNED)) FROM master_pertanyaan WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND id <> ?");
+                    $stmtMax->execute([$jenisQ, $bagianQ, $currentId]);
+                    $maxPos = (int)$stmtMax->fetchColumn() + 1;
+                    if ($urutanQ < 1 || $urutanQ > $maxPos) $urutanQ = $maxPos;
+
+                    if ($sameGroup) {
+                        $oldUrutan = (int)$current['urutan'];
+                        if ($urutanQ < $oldUrutan) {
+                            $stmtShift = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan + 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) >= ? AND CAST(urutan AS UNSIGNED) < ? AND id <> ?");
+                            $stmtShift->execute([$jenisQ, $bagianQ, $urutanQ, $oldUrutan, $currentId]);
+                        } elseif ($urutanQ > $oldUrutan) {
+                            $stmtShift = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan - 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) > ? AND CAST(urutan AS UNSIGNED) <= ? AND id <> ?");
+                            $stmtShift->execute([$jenisQ, $bagianQ, $oldUrutan, $urutanQ, $currentId]);
+                        }
+                    } else {
+                        $stmtClose = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan - 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) > ?");
+                        $stmtClose->execute([$current['jenis_kuesioner'], $current['kategori_bagian'], (int)$current['urutan']]);
+                        $stmtShift = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan + 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) >= ?");
+                        $stmtShift->execute([$jenisQ, $bagianQ, $urutanQ]);
+                    }
+
+                    $sql = "UPDATE master_pertanyaan SET jenis_kuesioner=?, kategori_bagian=?, teks_pertanyaan=?, keterangan=?, tipe_input=?, pilihan_opsi=?, urutan=? WHERE id=?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$jenisQ, $bagianQ, $soalQ, $keteranganQ, $tipeQ, $pilihanQ, $urutanQ, $currentId]);
+                    $pdo->commit();
+                    $pesan = "Data pertanyaan berhasil diperbarui!";
+                } catch (Exception $e) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    throw $e;
+                }
+            }
+        } elseif (isset($_POST['aksi']) && $_POST['aksi'] === 'hapus') {
+            $currentId = (int)($_POST['id'] ?? 0);
+            $stmtCurrent = $pdo->prepare("SELECT jenis_kuesioner, kategori_bagian, urutan FROM master_pertanyaan WHERE id = ?");
+            $stmtCurrent->execute([$currentId]);
+            $current = $stmtCurrent->fetch(PDO::FETCH_ASSOC);
+            if (!$current) throw new Exception("Data pertanyaan tidak ditemukan.");
+
+            $pdo->beginTransaction();
+            try {
+                $stmt = $pdo->prepare("DELETE FROM master_pertanyaan WHERE id = ?");
+                $stmt->execute([$currentId]);
+                $stmtShift = $pdo->prepare("UPDATE master_pertanyaan SET urutan = urutan - 1 WHERE jenis_kuesioner = ? AND kategori_bagian = ? AND CAST(urutan AS UNSIGNED) > ?");
+                $stmtShift->execute([$current['jenis_kuesioner'], $current['kategori_bagian'], (int)$current['urutan']]);
+                $pdo->commit();
+                $pesan = "Pertanyaan berhasil dihapus.";
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $e;
+            }
+        } else {
+            // Jika ada aksi lain yang belum di-handle atau bukan POST yang diinginkan
+            if (isset($_POST['aksi'])) return; 
+        }
+
+        if ($pesan !== "") {
+            $_SESSION['flash_message'] = $pesan;
+            $redirectTab = $_POST['tab'] ?? (isset($jenisQ) && $jenisQ === 'TKM' ? 'tkm' : 'iplm');
+            $redirectPageIplm = (int)($_POST['page_iplm'] ?? 1);
+            $redirectPageTkm = (int)($_POST['page_tkm'] ?? 1);
+            $_SESSION['atur_pertanyaan_state'] = [
+                'tab' => $redirectTab,
+                'page_iplm' => max(1, $redirectPageIplm),
+                'page_tkm' => max(1, $redirectPageTkm),
+            ];
+            header("Location: atur_pertanyaan.php"); exit;
+        }
+
+    } catch (Exception $e) { 
+        $_SESSION['flash_message_error'] = "Terjadi kesalahan. Silakan coba lagi.";
+        header("Location: atur_pertanyaan.php"); exit;
+    }
+}
+
+if (isset($_SESSION['flash_message_error'])) { 
+    $pesan = $_SESSION['flash_message_error'];
+    $pesan_type = "danger";
+    unset($_SESSION['flash_message_error']); 
+} elseif (isset($_SESSION['flash_message'])) { 
+    $pesan = $_SESSION['flash_message'];
+    $pesan_type = "success";
+    unset($_SESSION['flash_message']); 
+}
+
+// --- 1b. REFRESH URUTAN OTOMATIS (DIPERBAIKI) ---
+// Merapikan urutan: Nomor di-reset per kombinasi Jenis Kuesioner + Kategori/Bagian
+// Implementasi PHP untuk konsistensi lintas versi MySQL/MariaDB.
+try {
+    // Ambil semua grup (jenis_kuesioner + kategori_bagian)
+    $stmtGroups = $pdo->query("SELECT DISTINCT jenis_kuesioner, kategori_bagian FROM master_pertanyaan ORDER BY jenis_kuesioner, kategori_bagian");
+    $groups = $stmtGroups->fetchAll(PDO::FETCH_ASSOC);
+    $pdo->beginTransaction();
+    $stmtSelect = $pdo->prepare("SELECT id, urutan FROM master_pertanyaan WHERE jenis_kuesioner = ? AND kategori_bagian = ? ORDER BY CAST(urutan AS UNSIGNED), id");
+    $stmtUpdate = $pdo->prepare("UPDATE master_pertanyaan SET urutan = ? WHERE id = ?");
+    foreach ($groups as $g) {
+        $j = $g['jenis_kuesioner'];
+        $k = $g['kategori_bagian'];
+        $stmtSelect->execute([$j, $k]);
+        $rows = $stmtSelect->fetchAll(PDO::FETCH_ASSOC);
+        $n = 1;
+        foreach ($rows as $r) {
+            $id = $r['id'];
+            // hanya update jika berbeda untuk mengurangi query
+            if ((int)$r['urutan'] !== $n) {
+                $stmtUpdate->execute([$n, $id]);
+            }
+            $n++;
+        }
+    }
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    // jangan gagalkan halaman jika refresh urutan gagal
+}
+
+// --- 2. AMBIL DATA (PAGINASI) ---
+$per_page = 50;
+$state = $_SESSION['atur_pertanyaan_state'] ?? [];
+$page_iplm = max(1, (int)($state['page_iplm'] ?? 1));
+$page_tkm = max(1, (int)($state['page_tkm'] ?? 1));
+$active_tab = $state['tab'] ?? '';
+
+try {
+    $stmtCountI = $pdo->query("SELECT COUNT(*) FROM master_pertanyaan WHERE jenis_kuesioner = 'IPLM'");
+    $total_iplm = (int)$stmtCountI->fetchColumn();
+} catch (Exception $e) { $total_iplm = 0; }
+
+try {
+    $stmtCountT = $pdo->query("SELECT COUNT(*) FROM master_pertanyaan WHERE jenis_kuesioner = 'TKM'");
+    $total_tkm = (int)$stmtCountT->fetchColumn();
+} catch (Exception $e) { $total_tkm = 0; }
+
+$total_pages_iplm = max(1, (int)ceil($total_iplm / $per_page));
+$total_pages_tkm = max(1, (int)ceil($total_tkm / $per_page));
+
+$page_iplm = min($page_iplm, $total_pages_iplm);
+$page_tkm = min($page_tkm, $total_pages_tkm);
+
+$offset_iplm = ($page_iplm - 1) * $per_page;
+$offset_tkm = ($page_tkm - 1) * $per_page;
+
+$sqlIplm = "SELECT m.* FROM master_pertanyaan m "
+    . "LEFT JOIN kategori_bagian kb ON kb.jenis_kuesioner = m.jenis_kuesioner AND kb.name = m.kategori_bagian "
+    . "WHERE m.jenis_kuesioner = 'IPLM' "
+    . "ORDER BY COALESCE(kb.position, 9999) ASC, m.kategori_bagian ASC, CAST(m.urutan AS UNSIGNED) ASC, m.id ASC "
+    . "LIMIT " . intval($per_page) . " OFFSET " . intval($offset_iplm);
+$stmtIplm = $pdo->prepare($sqlIplm);
+$stmtIplm->execute();
+$data_iplm = $stmtIplm->fetchAll(PDO::FETCH_ASSOC);
+
+$sqlTkm = "SELECT m.* FROM master_pertanyaan m "
+    . "LEFT JOIN kategori_bagian kb ON kb.jenis_kuesioner = m.jenis_kuesioner AND kb.name = m.kategori_bagian "
+    . "WHERE m.jenis_kuesioner = 'TKM' "
+    . "ORDER BY COALESCE(kb.position, 9999) ASC, m.kategori_bagian ASC, CAST(m.urutan AS UNSIGNED) ASC, m.id ASC "
+    . "LIMIT " . intval($per_page) . " OFFSET " . intval($offset_tkm);
+$stmtTkm = $pdo->prepare($sqlTkm);
+$stmtTkm->execute();
+$data_tkm = $stmtTkm->fetchAll(PDO::FETCH_ASSOC);
+
+// --- 2b. MAX URUTAN PER KATEGORI (UNTUK TOMBOL TAMBAH DI BAGIAN) ---
+$maxUrutanIplm = [];
+try {
+    $stmtMaxI = $pdo->prepare("SELECT kategori_bagian, MAX(CAST(urutan AS UNSIGNED)) AS max_urutan FROM master_pertanyaan WHERE jenis_kuesioner = 'IPLM' GROUP BY kategori_bagian");
+    $stmtMaxI->execute();
+    $rows = $stmtMaxI->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        $key = $r['kategori_bagian'] ?? '';
+        if ($key !== '') $maxUrutanIplm[$key] = (int)$r['max_urutan'];
+    }
+} catch (Exception $e) { $maxUrutanIplm = []; }
+
+$maxUrutanTkm = [];
+try {
+    $stmtMaxT = $pdo->prepare("SELECT kategori_bagian, MAX(CAST(urutan AS UNSIGNED)) AS max_urutan FROM master_pertanyaan WHERE jenis_kuesioner = 'TKM' GROUP BY kategori_bagian");
+    $stmtMaxT->execute();
+    $rows = $stmtMaxT->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        $key = $r['kategori_bagian'] ?? '';
+        if ($key !== '') $maxUrutanTkm[$key] = (int)$r['max_urutan'];
+    }
+} catch (Exception $e) { $maxUrutanTkm = []; }
+
+// --- 3. SETTING KONTAK IPLM ---
+$kontak_setting_id = '';
+try {
+    $stmtSettingKontak = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = 'iplm_kontak_pertanyaan_id' LIMIT 1");
+    $stmtSettingKontak->execute();
+    $kontak_setting_id = $stmtSettingKontak->fetchColumn();
+} catch (Exception $e) { $kontak_setting_id = ''; }
+
+// --- 3.5 GLOBAL NUMBERING STYLE SETTINGS ---
+$numbering_style_iplm = 'numeric';
+$numbering_style_tkm = 'numeric';
+try {
+    $stmtSettings = $pdo->prepare("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('iplm_numbering_style', 'tkm_numbering_style')");
+    $stmtSettings->execute();
+    $styleRows = $stmtSettings->fetchAll(PDO::FETCH_KEY_PAIR);
+    $numbering_style_iplm = $styleRows['iplm_numbering_style'] ?? 'numeric';
+    $numbering_style_tkm = $styleRows['tkm_numbering_style'] ?? 'numeric';
+} catch (Exception $e) {
+    // Default values
+}
+
+$list_iplm_questions = [];
+try {
+    $stmtAllIplm = $pdo->prepare("SELECT id, kategori_bagian, teks_pertanyaan FROM master_pertanyaan WHERE jenis_kuesioner = 'IPLM' ORDER BY CAST(urutan AS UNSIGNED) ASC");
+    $stmtAllIplm->execute();
+    $list_iplm_questions = $stmtAllIplm->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) { $list_iplm_questions = []; }
+
+$autofill_jenis_id = '';
+$autofill_subjenis_id = '';
+$autofill_nama_id = '';
+try {
+    $stmtAuto = $pdo->prepare("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('iplm_autofill_jenis_id','iplm_autofill_subjenis_id','iplm_autofill_nama_id')");
+    $stmtAuto->execute();
+    $autoRows = $stmtAuto->fetchAll(PDO::FETCH_KEY_PAIR);
+    $autofill_jenis_id = $autoRows['iplm_autofill_jenis_id'] ?? '';
+    $autofill_subjenis_id = $autoRows['iplm_autofill_subjenis_id'] ?? '';
+    $autofill_nama_id = $autoRows['iplm_autofill_nama_id'] ?? '';
+} catch (Exception $e) {}
+
+// Ambil daftar kategori yang dikelola
+$kategori_iplm = [];
+$kategori_tkm = [];
+try {
+    $stmtKat = $pdo->prepare("SELECT id, jenis_kuesioner, name, position, numbering_style FROM kategori_bagian ORDER BY jenis_kuesioner, position ASC");
+    $stmtKat->execute();
+    $krows = $stmtKat->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($krows as $kr) {
+        if ($kr['jenis_kuesioner'] === 'TKM') $kategori_tkm[] = $kr;
+        else $kategori_iplm[] = $kr;
+    }
+} catch (Exception $e) {
+    $kategori_iplm = []; $kategori_tkm = [];
+}
+?>
