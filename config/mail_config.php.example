@@ -1,0 +1,8 @@
+<?php
+// config/mail_config.php.example (Template Konfigurasi Email Brevo - Salin ke mail_config.php)
+
+return [
+    'brevo_api_key' => 'YOUR_BREVO_API_KEY_HERE',
+    'from_email' => 'admin@yourdomain.com',
+    'from_name' => 'Your App Name'
+];

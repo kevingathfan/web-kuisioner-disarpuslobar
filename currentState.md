@@ -126,79 +126,88 @@ erDiagram
     password_reset_logs }|--|| users : "logs for"
 ```
 
+*Catatan: Tabel pemulihan kata sandi (`password_resets`, `password_reset_logs`, `password_reset_email_logs`) digunakan untuk menyimpan token reset password, log audit reset password, dan status pengiriman email pemulihan.*
+
 ---
 
 ## 🏛️ Arsitektur & Teknologi Utama
 
-Sistem dikembangkan dengan arsitektur **monolitik modular berbasis web** yang sangat efisien dan aman tanpa ketergantungan framework berat.
+Sistem dikembangkan dengan arsitektur **MVC (Model-View-Controller) Clean Architecture** yang sangat efisien dan aman tanpa ketergantungan framework berat.
 
 ### 💻 Stack Teknologi
-1. **Core Backend**: PHP 8.x Native (menggunakan OOP PDO untuk koneksi database yang aman).
+1. **Core Backend**: PHP 8.x Native (menggunakan OOP PDO dan struktur folder MVC yang terstruktur rapi).
 2. **Database Engine**: MySQL / MariaDB (Storage Engine: InnoDB dengan integritas referensial kunci asing dan aksi `ON DELETE CASCADE`).
 3. **Frontend Presentation**: HTML5, Vanilla CSS3 (Custom Responsive & Glassmorphism Tokens), Bootstrap 5.3 (Utility framework), JQuery (untuk pemrosesan AJAX yang ringan).
 4. **Library & Integrasi Pihak Ketiga**:
    - **SweetAlert2**: Untuk tampilan dialog konfirmasi modern dan elegan.
    - **Select2 (Bootstrap 5 Theme)**: Untuk pencarian interaktif nama perpustakaan secara dinamis.
-   - **Chart.js**: Render statistik grafik bulanan interaktif pada dashboard admin.
-   - **PHPMailer / Brevo API Integration**: Otentikasi pengiriman email pemulihan sandi secara profesional.
+   - **Chart.js**: Render statistik grafik bulanan interaktif dan demografi pada dashboard admin.
+   - **Brevo API Integration**: Pengiriman email pemulihan kata sandi admin secara transaksional.
 
 ---
 
 ## 📂 Struktur Berkas & Direktori Workspace
 
-Workspace tersusun secara modular dengan pemisahan tegas antara logika admin, publik/pustakawan, dan konfigurasi inti:
+Workspace tersusun secara modular mengikuti pola desain Model-View-Controller (MVC) dengan pemisahan tegas antara logika aplikasi, tampilan, dan aset publik:
 
 ```
 web-perpus-lobar/
-├── .htaccess                 # Konfigurasi Apache (Security Headers, Gzip Compression, dan Clean Route redirection)
-├── index.php                 # Halaman Gerbang Utama (Landing Page dengan Glassmorphism Premium)
-├── proses_simpan.php         # Script penampung & validator penyimpanan data kuesioner publik
-├── database.sql              # Berkas eksport data SQL komplit skema & master data terbaru
-├── config/                   # Konfigurasi Inti & Utility Logika
-│   ├── admin_auth.php        # Middleware otentikasi admin, pengecekan Session Timeout (30 Menit), & Admin CSRF
-│   ├── database.php          # Konektor PDO untuk lingkungan Localhost
-│   ├── database_hosting.php  # Konektor PDO untuk lingkungan Production Hosting
-│   ├── loader.php            # Markup HTML spinner loading transisi halaman
-│   ├── mail_config.php       # Parameter rahasia otentikasi SMTP/API Brevo
-│   ├── mailer.php            # Wrapper pengiriman email pemulihan kata sandi
-│   ├── profanity.php         # Kamus data kata-kata kasar/umpatan sensor pengaduan
-│   └── public_security.php   # Middleware CSRF Publik, dan Rate Limiting (File-Locking based)
-├── assets/                   # Aset Statis & Gaya Visual (CSS & Gambar)
-│   ├── admin-readability.css # Optimasi kontras teks dan keterbacaan font di dashboard admin
-│   ├── admin-responsive.css  # Media Query penyesuaian sidebar/tabel pada gawai mobile
-│   ├── govtech.css           # Tema warna utama Royal GovTech, Grid, dan Card Tokens
-│   ├── loader.css / js       # Animasi CSS spinner penjelajah transisi
-│   ├── logo_disarpus.png     # Logo resmi Dinas Kearsipan & Perpustakaan Lombok Barat
-│   ├── logo_lobar.png        # Logo resmi Kabupaten Lombok Barat
-│   └── public-responsive.css # Media Query responsivitas untuk form publik
-├── pustakawan/               # Portal Pengisian & Layanan Publik
-│   ├── beranda.php           # Landing Page khusus pengisi survei
-│   ├── pilih_perpustakaan.php# Form interaktif pemilihan Jenis, Sub Jenis, & Nama Perpustakaan
-│   ├── kuisioner_iplm.php    # Pembungkus form dinamis IPLM
-│   ├── kuisioner_tkm.php     # Pembungkus form dinamis TKM
-│   ├── render_kuesioner.php  # Render dinamis Pertanyaan dari DB, Minimap Navigasi, & Auto-Scroll
-│   ├── form_pengaduan.php    # Form Kotak Aspirasi publik
-│   ├── proses_pengaduan.php  # Penampung complaint & filter profanitas/umpatan kasar
-│   └── riwayat.php / profil.php # Riwayat pengisian data lokal
-└── admin/                    # Panel Dashboard Administrator (RBAC & Analisis)
-    ├── index.php             # Proteksi folder admin
-    ├── login.php / logout.php# Logika autentikasi formal administrator
-    ├── forgot_password.php   # Form pemulihan password via token email
-    ├── reset_password.php    # Halaman input password baru pasca verifikasi token
-    ├── dashboard.php         # Beranda statistik analitis, filter dinamis, dan scheduling survei
-    ├── perpustakaan.php      # Manajemen data unit perpustakaan (CRUD, live search, reset status, import CSV)
-    ├── atur_pertanyaan.php   # Manajemen kuesioner, urutan dinamis, numbering style, impor soal CSV, auto-fill
-    ├── hasil_kuisioner.php   # Rekapitulasi jawaban, tabel matriks, filter periodik, export data
-    ├── pengaduan.php         # Manajemen kotak aspirasi (pin, status penyelesaian, sensor teks kasar)
-    ├── users.php             # Manajemen admin (Super vs Standard), dengan sistem "Non-Deletable Primary Admin"
-    └── export_data.php       # Utilitas export rekapitulasi data format Excel (Spreadsheet)
+├── .htaccess                 # Konfigurasi Apache tingkat root untuk mengamankan file sensitif & routing bersih
+├── .gitignore                # File pengecualian Git
+├── README.md                 # Petunjuk instalasi & dokumentasi singkat
+├── currentState.md           # Keadaan sistem terkini (Dokumen ini)
+├── database.sql              # Berkas eksport data SQL lengkap dengan skema & master data terbaru
+├── index.php                 # Halaman penengah root yang secara otomatis mengalihkan akses ke public/
+├── backup_legacy_pre_mvc.zip # Backup lokal dari file prosedural lama sebelum migrasi ke MVC (tidak ditrack git)
+├── composer.json / lock      # Konfigurasi Composer dan dependensi PHP
+├── robots.txt                # Panduan bagi web crawler/crawler mesin pencari
+├── config/                   # Konfigurasi Inti Aplikasi & Middleware
+│   ├── admin_auth.php        # Middleware keamanan admin, session timeout (30 menit), dan deteksi rewrite
+│   ├── database.php          # Inisialisasi koneksi global database menggunakan PDO
+│   ├── loader.php            # Templat loading spinner transisi halaman
+│   ├── mail_config.php       # Konfigurasi rahasia API Key Brevo & email pengirim
+│   ├── mailer.php            # Wrapper utilitas pengiriman email via Brevo API
+│   ├── profanity.php         # Kamus kata-kata tidak sopan untuk sensor kotak pengaduan
+│   └── public_security.php   # Keamanan CSRF publik & sistem proteksi rate limit
+├── public/                   # Satu-satunya folder yang dapat diakses publik oleh server web
+│   ├── .htaccess             # Aturan mod_rewrite Apache untuk menangani routing bersih lewat index.php
+│   ├── index.php             # Front Controller (Entry point utama aplikasi)
+│   └── assets/               # Aset Statis Publik (CSS, JS, & Gambar)
+│       ├── admin-readability.css  # CSS pembantu keterbacaan teks admin
+│       ├── admin-responsive.css   # CSS responsivitas layout dashboard admin
+│       ├── govtech.css            # Desain sistem warna utama Royal GovTech
+│       ├── loader.css / js        # Gaya visual & script animasi memuat halaman
+│       ├── logo_disarpus.png      # Logo instansi DISARPUS
+│       ├── logo_lobar.png         # Logo Kabupaten Lombok Barat
+│       └── public-responsive.css  # CSS responsivitas kuesioner publik
+├── app/                      # Logika Inti Pola MVC
+│   ├── Core/                 # Berkas Sistem Utama
+│   │   ├── App.php           # Router utama pengolah URL request (Front Controller helper)
+│   │   ├── Controller.php    # Base Controller (menyediakan method view, model, & dynamic redirect)
+│   │   └── Database.php      # Driver Database Wrapper berbasis PDO dengan support transaksi
+│   ├── Controllers/          # Logika Pengendali Request (Controllers)
+│   │   ├── AdminController.php      # Controller panel admin & manajemen data
+│   │   ├── AuthController.php       # Controller login/logout admin & pemulihan password (forgot/reset)
+│   │   ├── HomeController.php       # Controller landing page utama publik
+│   │   └── PustakawanController.php # Controller pengisian kuesioner & form pengaduan
+│   ├── Models/               # Interaksi Data Database (Models)
+│   │   ├── ComplaintModel.php       # Model pengaduan & aspirasi
+│   │   ├── DashboardModel.php       # Model untuk agregasi grafik & statistik dashboard
+│   │   ├── LibraryModel.php         # Model manajemen instansi perpustakaan
+│   │   ├── QuestionModel.php        # Model kuesioner & pertanyaan
+│   │   ├── SettingModel.php         # Model konfigurasi aplikasi
+│   │   └── UserModel.php            # Model manajemen akun pengguna
+│   └── Views/                # Berkas Presentasi (Views / HTML)
+│       ├── admin/            # Kumpulan tampilan antarmuka admin (termasuk login, forgot_password, & reset_password)
+│       ├── home/             # Tampilan halaman beranda utama
+│       └── pustakawan/       # Tampilan pengisian survei & form pengaduan
 ```
 
 ---
 
 ## 🌟 Inventaris Fitur & Fungsionalitas Aplikasi
 
-### 1. Portal Publik & Pengisian Kuesioner (`pustakawan/`)
+### 1. Portal Publik & Pengisian Kuesioner (`app/Views/pustakawan/` & `app/Views/home/`)
 - **Peta Identitas Perpustakaan (`pilih_perpustakaan.php`)**: Alur berjenjang (Jenis Utama $\rightarrow$ Sub Jenis $\rightarrow$ Cari Nama Perpustakaan) dengan Select2 interaktif. Mencegah kesalahan ketik (typo) nama instansi oleh responden.
 - **Formulir Kuesioner Dinamis (`render_kuesioner.php`)**:
   - Mengambil data pertanyaan langsung dari database sesuai jenis survei (IPLM / TKM).
@@ -209,10 +218,11 @@ web-perpus-lobar/
   - **Penomoran Dinamis**: Penomoran bab dan butir pertanyaan menggunakan gaya penomoran global dari database (Angka, Romawi, atau Tanpa Nomor).
 - **Kotak Aspirasi / Pengaduan (`form_pengaduan.php`)**: Portal pengaduan resmi terintegrasi dengan filter kata-kata kasar.
 
-### 2. Panel Administrator (`admin/`)
+### 2. Panel Administrator (`app/Views/admin/`)
 - **Dashboard Analitis (`dashboard.php`)**:
   - Ringkasan total responden bulanan, jumlah instansi yang sudah berpartisipasi, dan yang belum berpartisipasi.
   - Grafik tren bulanan IPLM & TKM interaktif berbasis Chart.js.
+  - **Grafik Demografi**: Menampilkan data statistik persebaran responden secara visual di dashboard.
   - **Penjadwalan Kuesioner Otomatis**: Fitur buka/tutup survei secara otomatis berdasarkan rentang tanggal dan jam terprogram, atau dialihkan ke mode manual secara instan.
 - **Manajemen Perpustakaan (`perpustakaan.php`)**:
   - Tambah, ubah, dan hapus instansi perpustakaan secara live (AJAX-based search).
@@ -230,6 +240,7 @@ web-perpus-lobar/
   - Menandai laporan pengaduan penting (pin ke atas) atau menandainya selesai diproses.
 - **Manajemen Pengguna (`users.php`)**:
   - Pembatasan hak akses berbasis peran (Super Admin vs Admin Standar). Super Admin dapat mengelola akun admin lain.
+  - **Proteksi Log Email**: Manajemen data log historis di tab konfigurasi pengguna.
 
 ---
 
@@ -281,6 +292,6 @@ Antarmuka dirancang menggunakan filosofi **Royal GovTech UI** yang elegan, berwi
 
 ## 📈 Kondisi Terkini & Kesimpulan Proyek
 
-Aplikasi **Layanan Survei & Kotak Aspirasi DISARPUS LOBAR** saat ini berada dalam kondisi **siap produksi (Production Ready)** dengan performa maksimal, pertahanan keamanan yang andal, dan desain visual yang elegan. Seluruh fitur administrasi (CRUD, import massal, ekspor rekapitulasi, penjadwalan dinamis, sistem otentikasi reset sandi via Brevo API, perlindungan role RBAC) berjalan dengan benar dan stabil.
+Aplikasi **Layanan Survei & Kotak Aspirasi DISARPUS LOBAR** saat ini telah bermigrasi sepenuhnya ke arsitektur **MVC (Model-View-Controller)** yang rapi, modern, dan modular. Fitur pemulihan kata sandi admin (Lupa & Reset Password) telah berhasil diimplementasikan ulang di bawah arsitektur MVC menggunakan integrasi Brevo API v3 secara aman. Berkas prosedural lama yang tidak terpakai telah dibersihkan secara permanen dari Git, dengan cadangan lokal disimpan aman di `backup_legacy_pre_mvc.zip`.
 
-Sistem ini siap dihosting pada server produksi Dinas Kearsipan & Perpustakaan Lombok Barat untuk memfasilitasi pengumpulan data indeks literasi yang andal dan aman.
+Sistem siap dihosting pada server produksi Dinas Kearsipan & Perpustakaan Lombok Barat dengan kinerja andal, struktur kode profesional, dan standar keamanan tertinggi.

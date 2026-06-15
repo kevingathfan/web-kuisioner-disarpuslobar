@@ -2,7 +2,7 @@
 /vendor/
 
 # Configuration (Optional: ignore local DB if you want)
-# config/database.php
+config/database.php
 
 # Logs and temporary files
 *.log
@@ -11,3 +11,9 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# Legacy backups
+backup_legacy_pre_mvc.zip
+
+# Mail configurations
+config/mail_config.php
