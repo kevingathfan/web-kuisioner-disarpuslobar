@@ -6,7 +6,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (empty($_SESSION['admin_logged_in'])) {
-    header('Location: login.php');
+    if (defined('USE_REWRITE') && !USE_REWRITE) {
+        header('Location: ' . BASE_URL . '/public/index.php?url=auth/login');
+    } else {
+        header('Location: ' . BASE_URL . '/auth/login');
+    }
     exit;
 }
 
@@ -18,7 +22,11 @@ if (!isset($_SESSION['admin_last_activity'])) {
     if (time() - $_SESSION['admin_last_activity'] > $idle_limit) {
         session_unset();
         session_destroy();
-        header('Location: login.php');
+        if (defined('USE_REWRITE') && !USE_REWRITE) {
+            header('Location: ' . BASE_URL . '/public/index.php?url=auth/login');
+        } else {
+            header('Location: ' . BASE_URL . '/auth/login');
+        }
         exit;
     }
     $_SESSION['admin_last_activity'] = time();

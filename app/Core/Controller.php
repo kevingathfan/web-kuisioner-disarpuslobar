@@ -14,7 +14,12 @@ class Controller {
     }
 
     public function redirect($url) {
-        header('Location: ' . BASE_URL . $url);
+        if (defined('USE_REWRITE') && !USE_REWRITE) {
+            $cleanUrl = ltrim($url, '/');
+            header('Location: ' . BASE_URL . '/public/index.php?url=' . $cleanUrl);
+        } else {
+            header('Location: ' . BASE_URL . $url);
+        }
         exit;
     }
 }
