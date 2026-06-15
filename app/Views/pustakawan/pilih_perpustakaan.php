@@ -1,0 +1,248 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Pilih Identitas Perpustakaan - Royal GovTech</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="<?= BASE_URL ?>/assets/loader.css">
+  <link rel="stylesheet" href="<?= BASE_URL ?>/assets/public-responsive.css">
+  <style>
+    :root {
+        --primary: #2563EB;
+        --primary-dark: #1E40AF;
+        --border: #e2e8f0;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+    }
+    body { 
+        background-color: #F8FAFC; 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        display: flex; 
+        align-items: center; 
+        min-height: 100vh; 
+        position: relative; 
+        overflow-x: hidden; 
+        margin: 0;
+        color: var(--text-main);
+    }
+
+    .main-card {
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+        background: #fff;
+        transition: transform 0.3s ease;
+    }
+
+    .brand-logo { height: 40px !important; width: auto !important; }
+    .page-title { font-weight: 800; letter-spacing: -1px; color: var(--text-main); }
+    
+    .form-label { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    
+    .btn-primary-gov {
+        background: var(--primary);
+        border: none;
+        padding: 14px;
+        border-radius: 50px;
+        font-weight: 700;
+        color: white;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        transition: all 0.3s ease;
+    }
+    .btn-primary-gov:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        background: var(--primary-dark);
+        color: white;
+    }
+    .btn-primary-gov:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
+    .select2-container--bootstrap-5 .select2-selection {
+        border-radius: 12px;
+        padding: 6px 12px;
+        border-color: var(--border);
+    }
+  </style>
+</head>
+<body>
+  <?php include BASE_PATH . 'config/loader.php'; ?>
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="text-center mb-4">
+          <div class="d-flex justify-content-center gap-3 mb-3">
+              <img src="<?= BASE_URL ?>/assets/logo_lobar.png" alt="Logo Lobar" class="brand-logo">
+              <img src="<?= BASE_URL ?>/assets/logo_disarpus.png" alt="Logo Disarpus" class="brand-logo">
+          </div>
+          <h3 class="page-title">IDENTITAS<br><span style="color:var(--primary)">PERPUSTAKAAN</span></h3>
+          <p class="text-muted small">Silakan pilih data sesuai unit perpustakaan Anda</p>
+      </div>
+
+      <div class="main-card p-4 p-md-5">
+          <form id="loginForm" method="POST">
+            <input type="hidden" name="target" value="<?= htmlspecialchars($target) ?>">
+            <input type="hidden" name="nama_perpus_text" id="input_nama_text">
+
+            <div class="mb-4">
+              <label class="form-label mb-2">1. Jenis Perpustakaan</label>
+              <select id="select_jenis" name="kategori_utama" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" required>
+                <option value="">-- Pilih Jenis --</option>
+                <?php foreach(array_keys($strukturJenis) as $jenis): ?>
+                    <option value="<?= $jenis ?>"><?= $jenis ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label mb-2">2. Sub Jenis Perpustakaan</label>
+              <select id="select_subjenis" name="kategori_sub" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" disabled required>
+                <option value="">-- Pilih Jenis Dahulu --</option>
+              </select>
+            </div>
+
+            <div class="mb-5">
+              <label class="form-label mb-2">3. Nama Perpustakaan</label>
+              <select name="library_id" id="select_nama" class="form-select" disabled required>
+                <option value=""></option> 
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary-gov w-100 mb-3" id="btnSubmit" disabled>
+                LANJUTKAN KE FORMULIR <i class="bi bi-arrow-right ms-2"></i>
+            </button>
+            
+            <div class="text-center">
+                <a href="<?= BASE_URL ?>" class="text-decoration-none text-muted small fw-bold">
+                    <i class="bi bi-chevron-left me-1"></i> Kembali ke Beranda
+                </a>
+            </div>
+          </form>
+      </div>
+      
+      <div class="text-center mt-4">
+          <p class="text-muted" style="font-size: 0.75rem;">&copy; <?= date('Y') ?> Dinas Kearsipan & Perpustakaan Kab. Lombok Barat</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    const libraries = <?= json_encode($libraries) ?>;
+    const strukturJenis = <?= json_encode($strukturJenis) ?>; 
+
+    $(document).ready(function() {
+        // Inisialisasi awal Select2 Nama
+        $('#select_nama').select2({ 
+            theme: 'bootstrap-5', 
+            placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
+            width: '100%' 
+        });
+
+        // 1. Ganti Jenis -> Reset Sub Jenis & Nama
+        $('#select_jenis').change(function() {
+            const jenis = $(this).val();
+            const subDropdown = $('#select_subjenis');
+            const namaDropdown = $('#select_nama');
+
+            // Kosongkan Sub Jenis dulu
+            subDropdown.empty();
+
+            // RESET NAMA & TOMBOL
+            namaDropdown.empty().append('<option value=""></option>');
+            namaDropdown.prop('disabled', true);
+            namaDropdown.select2({ 
+                theme: 'bootstrap-5', 
+                placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
+                width: '100%' 
+            });
+            $('#btnSubmit').prop('disabled', true);
+
+            // LOGIKA UTAMA PERBAIKAN:
+            if (jenis && strukturJenis[jenis]) {
+                // Jika Jenis Dipilih: Isi Sub Jenis
+                subDropdown.append('<option value="">-- Pilih Sub Jenis --</option>');
+                strukturJenis[jenis].forEach(sub => {
+                    subDropdown.append(new Option(sub, sub));
+                });
+                subDropdown.prop('disabled', false);
+            } else {
+                // Jika Jenis KEMBALI KE DEFAULT (Kosong): 
+                // Kembalikan placeholder Sub Jenis ke "Pilih Jenis Terlebih Dahulu"
+                subDropdown.append('<option value="">-- Pilih Jenis Terlebih Dahulu --</option>');
+                subDropdown.prop('disabled', true);
+            }
+        });
+
+        // 2. Ganti Sub Jenis -> Filter Nama
+        $('#select_subjenis').change(function() {
+            const subJenis = $(this).val();
+            const namaDropdown = $('#select_nama');
+            namaDropdown.empty();
+
+            if (subJenis) {
+                let filteredLibs = libraries.filter(lib => lib.jenis === subJenis);
+                namaDropdown.append('<option value=""></option>');
+                
+                if (filteredLibs.length > 0) {
+                    filteredLibs.forEach(lib => {
+                        namaDropdown.append(new Option(lib.nama, lib.id));
+                    });
+                    namaDropdown.prop('disabled', false);
+                    // Update Placeholder Jadi "Cari Nama"
+                    namaDropdown.select2({ 
+                        theme: 'bootstrap-5', 
+                        placeholder: '-- Cari Nama Perpustakaan --', 
+                        width: '100%' 
+                    });
+                } else {
+                    namaDropdown.prop('disabled', true);
+                    namaDropdown.select2({ 
+                        theme: 'bootstrap-5', 
+                        placeholder: 'Tidak ada data perpustakaan', 
+                        width: '100%' 
+                    });
+                }
+            } else {
+                // Jika Sub Jenis kembali ke default
+                namaDropdown.prop('disabled', true);
+                namaDropdown.select2({ 
+                    theme: 'bootstrap-5', 
+                    placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
+                    width: '100%' 
+                });
+            }
+        });
+
+        // 3. Saat Nama Dipilih
+        $('#select_nama').change(function() {
+            if ($(this).val()) {
+                $('#btnSubmit').prop('disabled', false);
+                $('#input_nama_text').val($(this).find("option:selected").text());
+            } else {
+                $('#btnSubmit').prop('disabled', true);
+                $('#input_nama_text').val('');
+            }
+        });
+
+        // 4. Redirect
+        $('#loginForm').on('submit', function(e) {
+            const target = $('input[name="target"]').val();
+            this.action = (target === 'iplm') ? '<?= BASE_URL ?>/pustakawan/kuisioner_iplm' : (target === 'tkm' ? '<?= BASE_URL ?>/pustakawan/kuisioner_tkm' : '<?= BASE_URL ?>');
+        });
+    });
+
+</script>
+<script src="<?= BASE_URL ?>/assets/loader.js"></script>
+</body>
+</html>
