@@ -122,35 +122,34 @@ class PustakawanController extends Controller {
             return;
         }
 
-        if (!empty($_POST) || !empty($_GET)) {
-            $incoming = [
-                'library_id' => $_POST['library_id'] ?? ($_GET['library_id'] ?? null),
-                'kategori_utama' => $_POST['kategori_utama'] ?? ($_GET['kategori_utama'] ?? null),
-                'kategori_sub' => $_POST['kategori_sub'] ?? ($_GET['kategori_sub'] ?? null),
-                'nama_perpus_text' => $_POST['nama_perpus_text'] ?? ($_GET['nama_perpus_text'] ?? null),
-            ];
-            $hasAny = false;
-            foreach ($incoming as $k => $v) {
-                if ($v !== null && $v !== '') {
-                    $_SESSION['pustakawan_ctx'][$k] = $v;
-                    $hasAny = true;
-                }
-            }
-            $get_params = $_GET;
-            unset($get_params['url']);
-            if ($hasAny || !empty($get_params)) {
-                $this->redirect('/pustakawan/kuisioner_iplm');
+        // --- PROSES VERIFIKASI TOKEN (IPLM) ---
+        $tokenInput = $_GET['token'] ?? ($_POST['token'] ?? null);
+        if (!empty($tokenInput)) {
+            $libraryModel = $this->model('LibraryModel');
+            $lib = $libraryModel->getLibraryByToken(trim($tokenInput));
+            if (!$lib) {
+                $this->view('pustakawan/token_invalid');
                 return;
             }
+            $_SESSION['pustakawan_ctx'] = [
+                'library_id' => $lib['id'],
+                'kategori_utama' => $lib['kategori'] ?? 'Umum',
+                'kategori_sub' => $lib['jenis'] ?? '',
+                'nama_perpus_text' => $lib['nama'] ?? '',
+                'target' => 'iplm'
+            ];
+            $this->redirect('/pustakawan/kuisioner_iplm');
+            return;
         }
 
         $library_id = $_SESSION['pustakawan_ctx']['library_id'] ?? '';
         $kat_utama  = $_SESSION['pustakawan_ctx']['kategori_utama'] ?? '';
         $kat_sub    = $_SESSION['pustakawan_ctx']['kategori_sub'] ?? '';
         $nama_text  = $_SESSION['pustakawan_ctx']['nama_perpus_text'] ?? '';
+        $target_ctx = $_SESSION['pustakawan_ctx']['target'] ?? '';
 
-        if (!$library_id) {
-            $this->redirect('/pustakawan/pilih_perpustakaan');
+        if (!$library_id || $target_ctx !== 'iplm') {
+            $this->redirect('/pustakawan/pilih_perpustakaan?target=iplm');
             return;
         }
 
@@ -270,6 +269,13 @@ class PustakawanController extends Controller {
 
             $library_id = !empty($_POST['library_id']) ? $_POST['library_id'] : null;
             $jenis = $_POST['jenis_kuesioner'] ?? '';
+            if ($jenis === 'IPLM') {
+                $sess_lib = $_SESSION['pustakawan_ctx']['library_id'] ?? null;
+                $sess_target = $_SESSION['pustakawan_ctx']['target'] ?? null;
+                if (!$sess_lib || $sess_target !== 'iplm' || (string)$sess_lib !== (string)$library_id) {
+                    die("Akses tidak sah. Silakan gunakan link atau kode token resmi untuk mengisi survei IPLM.");
+                }
+            }
             $jawaban = $_POST['jawaban'] ?? []; // Array [id_soal => isi_jawaban]
             $periode_bulan = date('m');
             $periode_tahun = date('Y');

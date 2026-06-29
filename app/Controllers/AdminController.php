@@ -277,6 +277,27 @@ class AdminController extends Controller {
         }
     }
 
+    // --- EXPORT LINK & TOKEN IPLM ---
+    if (isset($_GET['ajax_action']) && $_GET['ajax_action'] == 'export_token_links') {
+        $stmt = $pdo->query("SELECT nama, kategori, jenis, token FROM libraries ORDER BY nama ASC");
+        $libs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=daftar_token_iplm_' . date('Ymd') . '.csv');
+        
+        $output = fopen('php://output', 'w');
+        fputs($output, "\xEF\xBB\xBF"); // BOM for Excel
+        fputcsv($output, ['Nama Perpustakaan', 'Kategori', 'Sub Jenis', 'Kode Akses (Token)', 'Link Akses Langsung']);
+        
+        foreach ($libs as $lib) {
+            $token = $lib['token'] ?? '';
+            $link = $token ? BASE_URL . '/pustakawan/kuisioner_iplm?token=' . $token : 'Belum digenerate';
+            fputcsv($output, [$lib['nama'], $lib['kategori'], $lib['jenis'], $token, $link]);
+        }
+        fclose($output);
+        exit;
+    }
+
     // --- 1. HANDLE REQUEST AJAX (LIVE SEARCH & STATUS IPLM) ---
     if (isset($_GET['ajax_action']) && $_GET['ajax_action'] == 'load_table') {
         
@@ -358,7 +379,7 @@ class AdminController extends Controller {
 
             // Render HTML Baris Tabel
             if (empty($libraries)) {
-                echo '<tr><td colspan="7" class="text-center py-5 text-muted">Tidak ada data ditemukan.</td></tr>';
+                echo '<tr><td colspan="8" class="text-center py-5 text-muted">Tidak ada data ditemukan.</td></tr>';
             } else {
                 $no = $offset + 1;
                 foreach ($libraries as $lib) {
@@ -375,6 +396,19 @@ class AdminController extends Controller {
                     echo '<td class="fw-bold text-uppercase">' . htmlspecialchars($lib['nama']) . '</td>';
                     echo '<td><span class="badge ' . $bg . ' badge-kategori">' . htmlspecialchars($kat) . '</span></td>';
                     echo '<td>' . htmlspecialchars($lib['jenis']) . '</td>';
+                    
+                    if (!empty($lib['token'])) {
+                        $shortToken = substr($lib['token'], 0, 8) . '...';
+                        $copyLink = BASE_URL . '/pustakawan/kuisioner_iplm?token=' . $lib['token'];
+                        $tokenHtml = '<div class="d-flex align-items-center justify-content-center gap-1">'
+                                   . '<span class="font-monospace small text-dark bg-light px-2 py-1 rounded border me-1">' . $shortToken . '</span>'
+                                   . '<button type="button" class="btn btn-sm btn-outline-primary shadow-none" style="width: 32px; height: 32px; padding: 0 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 6px;" onclick="copyToClipboard(\'' . $copyLink . '\', \'Link IPLM disalin!\')" title="Salin Link IPLM"><i class="bi bi-link" style="font-size: 1.15rem; margin: 0 !important; padding: 0 !important; line-height: 1 !important; display: flex !important; align-items: center !important; justify-content: center !important; letter-spacing: 0 !important;"></i></button>'
+                                   . '<button type="button" class="btn btn-sm btn-outline-secondary shadow-none" style="width: 32px; height: 32px; padding: 0 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 6px;" onclick="copyToClipboard(\'' . $lib['token'] . '\', \'Kode Token disalin!\')" title="Salin Kode Token"><i class="bi bi-clipboard" style="font-size: 0.95rem; margin: 0 !important; padding: 0 !important; line-height: 1 !important; display: flex !important; align-items: center !important; justify-content: center !important; letter-spacing: 0 !important;"></i></button>'
+                                   . '</div>';
+                    } else {
+                        $tokenHtml = '<span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill">Belum</span>';
+                    }
+                    echo '<td class="text-center">' . $tokenHtml . '</td>';
                     
                     $statusText = ($lib['status_iplm'] > 0) ? 'sudah' : 'belum';
                     echo '<td class="text-center">
@@ -405,7 +439,7 @@ class AdminController extends Controller {
                 
                 // PAGINATION
                 if ($total_pages > 1) {
-                    echo '<tr id="pagination-row"><td colspan="7" class="p-0 border-0"><nav class="mt-4"><ul class="pagination pagination-sm justify-content-center">';
+                    echo '<tr id="pagination-row"><td colspan="8" class="p-0 border-0"><nav class="mt-4"><ul class="pagination pagination-sm justify-content-center">';
                     
                     $prevDisabled = ($page <= 1) ? 'disabled' : '';
                     $prevPage = max(1, $page - 1);
@@ -617,6 +651,15 @@ class AdminController extends Controller {
                             $pesan .= "</ul></div>";
                         }
                     } else { throw new Exception("Gagal upload CSV."); }
+                }
+                elseif ($_POST['aksi'] == 'generate_tokens') {
+                    $libModel = $this->model('LibraryModel');
+                    $count = $libModel->generateAllTokens();
+                    if(isset($_POST['ajax']) && $_POST['ajax'] == 1) { 
+                        echo json_encode(['status'=>'success', 'message'=>"Berhasil memproses & menghasilkan token untuk $count perpustakaan!"]); 
+                        exit; 
+                    }
+                    $pesan = "Berhasil menghasilkan token untuk $count perpustakaan!";
                 }
             }
             elseif (isset($_POST['form_type']) && $_POST['form_type'] == 'category') {

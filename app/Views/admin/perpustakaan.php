@@ -224,10 +224,16 @@
                             <div class="small text-muted">
                                 <i class="bi bi-check2-square me-1"></i> Pilih data untuk aksi massal
                             </div>
-                            <div class="d-flex gap-2">
+                            <div class="d-flex flex-wrap gap-2">
                                 <button class="btn btn-danger fw-bold rounded-pill px-3 d-none shadow-sm" id="btnHapusBulk" onclick="deleteBulk()">
                                     <i class="bi bi-trash me-1"></i> Hapus (<span id="countSelected">0</span>)
                                 </button>
+                                <button class="btn btn-success fw-bold rounded-pill px-3 shadow-sm" onclick="generateTokens()">
+                                    <i class="bi bi-key-fill me-1"></i> Generate Token
+                                </button>
+                                <a href="<?= BASE_URL ?>/admin/perpustakaan?ajax_action=export_token_links" class="btn btn-outline-success fw-bold rounded-pill px-3 shadow-sm">
+                                    <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Link IPLM
+                                </a>
                                 <button class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm" onclick="openModalLib()">
                                     <i class="bi bi-plus-lg me-1"></i> Tambah Data
                                 </button>
@@ -242,15 +248,16 @@
                                             <input type="checkbox" id="checkAll" class="form-check-input" onclick="toggleSelectAll()">
                                         </th>
                                         <th width="5%" class="text-center">No</th>
-                                        <th width="35%">Nama Perpustakaan</th>
-                                        <th width="15%">Jenis</th>
-                                        <th width="20%">Sub Jenis</th>
-                                        <th width="15%" class="text-center">Status IPLM</th>
+                                        <th width="28%">Nama Perpustakaan</th>
+                                        <th width="12%">Jenis</th>
+                                        <th width="15%">Sub Jenis</th>
+                                        <th width="18%" class="text-center">Kode Akses</th>
+                                        <th width="12%" class="text-center">Status IPLM</th>
                                         <th width="7%" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody" class="bg-white">
-                                    <tr><td colspan="7" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
+                                    <tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -951,6 +958,75 @@
                     checkAll.checked = allCheckboxes.length === checkedCheckboxes.length;
                     checkAll.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
                 }
+            }
+
+            function generateTokens() {
+                Swal.fire({
+                    title: 'Generate Token Keamanan?',
+                    text: 'Sistem akan membuatkan kode akses unik untuk semua perpustakaan yang belum memiliki token.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Generate Sekarang',
+                    confirmButtonColor: '#10B981',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if(result.isConfirmed) {
+                        Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        const fd = new FormData();
+                        fd.append('csrf_token', '<?= csrf_token() ?>');
+                        fd.append('form_type', 'library');
+                        fd.append('aksi', 'generate_tokens');
+                        fd.append('ajax', '1');
+                        
+                        fetch('<?= BASE_URL ?>/admin/perpustakaan', { method: 'POST', body: fd })
+                        .then(r => r.json())
+                        .then(res => {
+                            if(res.status === 'success') {
+                                Swal.fire('Berhasil!', res.message, 'success');
+                                loadTable(currentPage);
+                            } else {
+                                Swal.fire('Gagal!', res.message || 'Gagal generate token.', 'error');
+                            }
+                        }).catch(e => Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error'));
+                    }
+                });
+            }
+
+            function copyToClipboard(text, msg = 'Berhasil disalin!') {
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        showToastCopy(msg);
+                    }).catch(() => fallbackCopyTextToClipboard(text, msg));
+                } else {
+                    fallbackCopyTextToClipboard(text, msg);
+                }
+            }
+
+            function fallbackCopyTextToClipboard(text, msg) {
+                var textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed"; // avoid scrolling to bottom
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToastCopy(msg);
+                } catch (err) {
+                    prompt('Salin teks berikut manual (Ctrl+C):', text);
+                }
+                document.body.removeChild(textArea);
+            }
+
+            function showToastCopy(msg) {
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+                Toast.fire({ icon: 'success', title: msg });
             }
 
             // Check for tab parameter and switch tab

@@ -68,6 +68,13 @@
         padding: 6px 12px;
         border-color: var(--border);
     }
+
+    #input_token::placeholder {
+        font-weight: 400 !important;
+        color: #94a3b8 !important;
+        font-size: 0.92rem !important;
+        letter-spacing: normal !important;
+    }
   </style>
 </head>
 <body>
@@ -81,8 +88,13 @@
               <img src="<?= BASE_URL ?>/assets/logo_lobar.png" alt="Logo Lobar" class="brand-logo">
               <img src="<?= BASE_URL ?>/assets/logo_disarpus.png" alt="Logo Disarpus" class="brand-logo">
           </div>
-          <h3 class="page-title">IDENTITAS<br><span style="color:var(--primary)">PERPUSTAKAAN</span></h3>
-          <p class="text-muted small">Silakan pilih data sesuai unit perpustakaan Anda</p>
+          <?php if ($target === 'iplm'): ?>
+              <h3 class="page-title">SURVEI <span style="color:var(--primary)">IPLM</span></h3>
+              <p class="text-muted small">Indeks Pembangunan Literasi Masyarakat</p>
+          <?php else: ?>
+              <h3 class="page-title">IDENTITAS<br><span style="color:var(--primary)">PERPUSTAKAAN</span></h3>
+              <p class="text-muted small">Silakan pilih data sesuai unit perpustakaan Anda</p>
+          <?php endif; ?>
       </div>
 
       <div class="main-card p-4 p-md-5">
@@ -90,33 +102,47 @@
             <input type="hidden" name="target" value="<?= htmlspecialchars($target) ?>">
             <input type="hidden" name="nama_perpus_text" id="input_nama_text">
 
-            <div class="mb-4">
-              <label class="form-label mb-2">1. Jenis Perpustakaan</label>
-              <select id="select_jenis" name="kategori_utama" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" required>
-                <option value="">-- Pilih Jenis --</option>
-                <?php foreach(array_keys($strukturJenis) as $jenis): ?>
-                    <option value="<?= $jenis ?>"><?= $jenis ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
+            <?php if ($target === 'iplm'): ?>
+                <div class="mb-4">
+                    <label class="form-label mb-2 text-dark">MASUKKAN KODE AKSES PERPUSTAKAAN</label>
+                    <input type="text" name="token" id="input_token" class="form-control shadow-none text-center" style="border-radius:12px; height: 52px; border: 1.5px solid var(--border); font-size: 1.05rem; font-weight: 600; color: #0f172a;" placeholder="Contoh: 01411fb9..." required autocomplete="off">
+                    <div class="mt-2 text-center" style="font-size: 0.8rem; color: #64748b;">
+                        <i class="bi bi-info-circle me-1"></i>Kode resmi didapatkan dari Admin Disarpus Lobar
+                    </div>
+                </div>
 
-            <div class="mb-4">
-              <label class="form-label mb-2">2. Sub Jenis Perpustakaan</label>
-              <select id="select_subjenis" name="kategori_sub" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" disabled required>
-                <option value="">-- Pilih Jenis Dahulu --</option>
-              </select>
-            </div>
+                <button type="submit" class="btn btn-primary-gov w-100 mb-2" id="btnSubmitIplm">
+                    LANJUTKAN <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            <?php else: ?>
+                <div class="mb-4">
+                  <label class="form-label mb-2">1. Jenis Perpustakaan</label>
+                  <select id="select_jenis" name="kategori_utama" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" required>
+                    <option value="">-- Pilih Jenis --</option>
+                    <?php foreach(array_keys($strukturJenis) as $jenis): ?>
+                        <option value="<?= $jenis ?>"><?= $jenis ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
 
-            <div class="mb-5">
-              <label class="form-label mb-2">3. Nama Perpustakaan</label>
-              <select name="library_id" id="select_nama" class="form-select" disabled required>
-                <option value=""></option> 
-              </select>
-            </div>
+                <div class="mb-4">
+                  <label class="form-label mb-2">2. Sub Jenis Perpustakaan</label>
+                  <select id="select_subjenis" name="kategori_sub" class="form-select shadow-none" style="border-radius:12px; height: 50px; border-color: var(--border);" disabled required>
+                    <option value="">-- Pilih Jenis Dahulu --</option>
+                  </select>
+                </div>
 
-            <button type="submit" class="btn btn-primary-gov w-100 mb-3" id="btnSubmit" disabled>
-                LANJUTKAN KE FORMULIR <i class="bi bi-arrow-right ms-2"></i>
-            </button>
+                <div class="mb-5">
+                  <label class="form-label mb-2">3. Nama Perpustakaan</label>
+                  <select name="library_id" id="select_nama" class="form-select" disabled required>
+                    <option value=""></option> 
+                  </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary-gov w-100 mb-3" id="btnSubmit" disabled>
+                    LANJUTKAN KE FORMULIR <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            <?php endif; ?>
             
             <div class="text-center">
                 <a href="<?= BASE_URL ?>" class="text-decoration-none text-muted small fw-bold">
@@ -142,98 +168,100 @@
     const strukturJenis = <?= json_encode($strukturJenis) ?>; 
 
     $(document).ready(function() {
-        // Inisialisasi awal Select2 Nama
-        $('#select_nama').select2({ 
-            theme: 'bootstrap-5', 
-            placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
-            width: '100%' 
-        });
-
-        // 1. Ganti Jenis -> Reset Sub Jenis & Nama
-        $('#select_jenis').change(function() {
-            const jenis = $(this).val();
-            const subDropdown = $('#select_subjenis');
-            const namaDropdown = $('#select_nama');
-
-            // Kosongkan Sub Jenis dulu
-            subDropdown.empty();
-
-            // RESET NAMA & TOMBOL
-            namaDropdown.empty().append('<option value=""></option>');
-            namaDropdown.prop('disabled', true);
-            namaDropdown.select2({ 
+        if ($('#select_nama').length > 0) {
+            // Inisialisasi awal Select2 Nama
+            $('#select_nama').select2({ 
                 theme: 'bootstrap-5', 
                 placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
                 width: '100%' 
             });
-            $('#btnSubmit').prop('disabled', true);
 
-            // LOGIKA UTAMA PERBAIKAN:
-            if (jenis && strukturJenis[jenis]) {
-                // Jika Jenis Dipilih: Isi Sub Jenis
-                subDropdown.append('<option value="">-- Pilih Sub Jenis --</option>');
-                strukturJenis[jenis].forEach(sub => {
-                    subDropdown.append(new Option(sub, sub));
-                });
-                subDropdown.prop('disabled', false);
-            } else {
-                // Jika Jenis KEMBALI KE DEFAULT (Kosong): 
-                // Kembalikan placeholder Sub Jenis ke "Pilih Jenis Terlebih Dahulu"
-                subDropdown.append('<option value="">-- Pilih Jenis Terlebih Dahulu --</option>');
-                subDropdown.prop('disabled', true);
-            }
-        });
+            // 1. Ganti Jenis -> Reset Sub Jenis & Nama
+            $('#select_jenis').change(function() {
+                const jenis = $(this).val();
+                const subDropdown = $('#select_subjenis');
+                const namaDropdown = $('#select_nama');
 
-        // 2. Ganti Sub Jenis -> Filter Nama
-        $('#select_subjenis').change(function() {
-            const subJenis = $(this).val();
-            const namaDropdown = $('#select_nama');
-            namaDropdown.empty();
+                // Kosongkan Sub Jenis dulu
+                subDropdown.empty();
 
-            if (subJenis) {
-                let filteredLibs = libraries.filter(lib => lib.jenis === subJenis);
-                namaDropdown.append('<option value=""></option>');
-                
-                if (filteredLibs.length > 0) {
-                    filteredLibs.forEach(lib => {
-                        namaDropdown.append(new Option(lib.nama, lib.id));
-                    });
-                    namaDropdown.prop('disabled', false);
-                    // Update Placeholder Jadi "Cari Nama"
-                    namaDropdown.select2({ 
-                        theme: 'bootstrap-5', 
-                        placeholder: '-- Cari Nama Perpustakaan --', 
-                        width: '100%' 
-                    });
-                } else {
-                    namaDropdown.prop('disabled', true);
-                    namaDropdown.select2({ 
-                        theme: 'bootstrap-5', 
-                        placeholder: 'Tidak ada data perpustakaan', 
-                        width: '100%' 
-                    });
-                }
-            } else {
-                // Jika Sub Jenis kembali ke default
+                // RESET NAMA & TOMBOL
+                namaDropdown.empty().append('<option value=""></option>');
                 namaDropdown.prop('disabled', true);
                 namaDropdown.select2({ 
                     theme: 'bootstrap-5', 
                     placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
                     width: '100%' 
                 });
-            }
-        });
-
-        // 3. Saat Nama Dipilih
-        $('#select_nama').change(function() {
-            if ($(this).val()) {
-                $('#btnSubmit').prop('disabled', false);
-                $('#input_nama_text').val($(this).find("option:selected").text());
-            } else {
                 $('#btnSubmit').prop('disabled', true);
-                $('#input_nama_text').val('');
-            }
-        });
+
+                // LOGIKA UTAMA PERBAIKAN:
+                if (jenis && strukturJenis[jenis]) {
+                    // Jika Jenis Dipilih: Isi Sub Jenis
+                    subDropdown.append('<option value="">-- Pilih Sub Jenis --</option>');
+                    strukturJenis[jenis].forEach(sub => {
+                        subDropdown.append(new Option(sub, sub));
+                    });
+                    subDropdown.prop('disabled', false);
+                } else {
+                    // Jika Jenis KEMBALI KE DEFAULT (Kosong): 
+                    // Kembalikan placeholder Sub Jenis ke "Pilih Jenis Terlebih Dahulu"
+                    subDropdown.append('<option value="">-- Pilih Jenis Terlebih Dahulu --</option>');
+                    subDropdown.prop('disabled', true);
+                }
+            });
+
+            // 2. Ganti Sub Jenis -> Filter Nama
+            $('#select_subjenis').change(function() {
+                const subJenis = $(this).val();
+                const namaDropdown = $('#select_nama');
+                namaDropdown.empty();
+
+                if (subJenis) {
+                    let filteredLibs = libraries.filter(lib => lib.jenis === subJenis);
+                    namaDropdown.append('<option value=""></option>');
+                    
+                    if (filteredLibs.length > 0) {
+                        filteredLibs.forEach(lib => {
+                            namaDropdown.append(new Option(lib.nama, lib.id));
+                        });
+                        namaDropdown.prop('disabled', false);
+                        // Update Placeholder Jadi "Cari Nama"
+                        namaDropdown.select2({ 
+                            theme: 'bootstrap-5', 
+                            placeholder: '-- Cari Nama Perpustakaan --', 
+                            width: '100%' 
+                        });
+                    } else {
+                        namaDropdown.prop('disabled', true);
+                        namaDropdown.select2({ 
+                            theme: 'bootstrap-5', 
+                            placeholder: 'Tidak ada data perpustakaan', 
+                            width: '100%' 
+                        });
+                    }
+                } else {
+                    // Jika Sub Jenis kembali ke default
+                    namaDropdown.prop('disabled', true);
+                    namaDropdown.select2({ 
+                        theme: 'bootstrap-5', 
+                        placeholder: '-- Pilih Sub Jenis Terlebih Dahulu --', 
+                        width: '100%' 
+                    });
+                }
+            });
+
+            // 3. Saat Nama Dipilih
+            $('#select_nama').change(function() {
+                if ($(this).val()) {
+                    $('#btnSubmit').prop('disabled', false);
+                    $('#input_nama_text').val($(this).find("option:selected").text());
+                } else {
+                    $('#btnSubmit').prop('disabled', true);
+                    $('#input_nama_text').val('');
+                }
+            });
+        }
 
         // 4. Redirect
         $('#loginForm').on('submit', function(e) {
